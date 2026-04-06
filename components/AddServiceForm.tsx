@@ -1,8 +1,21 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+
+const inputField = (value: string, setter: (v: string) => void, placeholder: string, numeric = false) => (
+  <TextInput
+    value={value}
+    onChangeText={setter}
+    placeholder={placeholder}
+    placeholderTextColor="#7B7B8B"
+    keyboardType={numeric ? 'numeric' : 'default'}
+    className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+  />
+);
 
 const AddServiceForm = ({
   mainCategory,
+  setMainCategory,
+  existingCategories,
   serviceCategory,
   service,
   price,
@@ -15,60 +28,72 @@ const AddServiceForm = ({
   setDuration,
   handleAddService,
   setShowAddForm,
+}: {
+  mainCategory: string;
+  setMainCategory: (v: string) => void;
+  existingCategories: string[];
+  serviceCategory: string;
+  service: string;
+  price: string;
+  role: string;
+  duration: string;
+  setServiceCategory: (v: string) => void;
+  setService: (v: string) => void;
+  setPrice: (v: string) => void;
+  setRole: (v: string) => void;
+  setDuration: (v: string) => void;
+  handleAddService: () => void;
+  setShowAddForm: (v: boolean) => void;
 }) => {
   return (
-    <View className="p-4 my-4 bg-gray-100">
-      <Text className="text-lg font-bold mb-4">Add New Service</Text>
+    <View className="mx-4 mt-4 bg-black-100 rounded-2xl p-5">
+      <Text className="text-white font-psemibold text-lg mb-1">Add New Service</Text>
 
-      <Text className="text-base mb-2">Main Category: {mainCategory}</Text>
+      {/* Main Category Selector */}
+      <Text className="text-gray-100 font-pregular text-xs mb-2">Main Category</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+        {existingCategories.map((cat) => (
+          <TouchableOpacity
+            key={cat}
+            onPress={() => setMainCategory(cat)}
+            className={`mr-2 px-4 py-2 rounded-full border ${
+              mainCategory === cat ? 'bg-secondary border-secondary' : 'bg-black-200 border-black-200'
+            }`}
+          >
+            <Text className={`font-psemibold text-sm ${
+              mainCategory === cat ? 'text-primary' : 'text-gray-100'
+            }`}>{cat}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
+      {/* New Category Input */}
       <TextInput
-        value={serviceCategory}
-        onChangeText={setServiceCategory}
-        placeholder="Enter service category"
-        className="border p-2 mb-4"
+        value={existingCategories.includes(mainCategory) ? '' : mainCategory}
+        onChangeText={(v) => setMainCategory(v)}
+        placeholder="Or type a new category..."
+        placeholderTextColor="#7B7B8B"
+        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
       />
 
-      <TextInput
-        value={service}
-        onChangeText={setService}
-        placeholder="Enter service"
-        className="border p-2 mb-4"
-      />
+      {inputField(serviceCategory, setServiceCategory, 'Service category (e.g. Fade)')}
+      {inputField(service, setService, 'Service name')}
+      {inputField(price, setPrice, 'Price (£)', true)}
+      {inputField(role, setRole, 'Role (e.g. Senior Stylist)')}
+      {inputField(duration, setDuration, 'Duration (minutes)', true)}
 
-      <TextInput
-        value={price}
-        onChangeText={setPrice}
-        placeholder="Enter price"
-        keyboardType="numeric"
-        className="border p-2 mb-4"
-      />
-
-      <TextInput
-        value={role}
-        onChangeText={setRole}
-        placeholder="Enter role"
-        className="border p-2 mb-4"
-      />
-
-      <TextInput
-        value={duration}
-        onChangeText={setDuration}
-        placeholder="Enter duration (minutes)"
-        keyboardType="numeric"
-        className="border p-2 mb-4"
-      />
-
-      <TouchableOpacity onPress={handleAddService}>
-        <View className="p-4 bg-green-500 rounded">
-          <Text className="text-center text-white">Submit Service</Text>
-        </View>
+      <TouchableOpacity
+        onPress={handleAddService}
+        className="bg-secondary rounded-xl py-4 items-center mt-1"
+      >
+        <Text className="text-primary font-psemibold text-base">Submit Service</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setShowAddForm(false)}>
-        <View className="p-4 bg-red-500 rounded mt-4">
-          <Text className="text-center text-white">Cancel</Text>
-        </View>
+      <TouchableOpacity
+        onPress={() => setShowAddForm(false)}
+        className="items-center py-3 mt-1"
+      >
+        <Text className="text-gray-100 font-pregular">Cancel</Text>
       </TouchableOpacity>
     </View>
   );

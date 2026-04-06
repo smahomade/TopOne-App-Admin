@@ -1,23 +1,21 @@
-import { View, Text, ScrollView, Image, AppState } from 'react-native'
+import { View, Text, ScrollView, Image, AppState, Alert } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from '../../constants'
 import FormField from '../../components/FormField'
 import CustomButton from '../../components/CustomButton'
-import { Link, router } from 'expo-router'
+import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
-import Account from '../../components/Account'
 
 
 const SignIn = () => {
   const [form, setForm] = useState({
-    email:'',
-    password:'',
-    adminCode:''
+    email: '',
+    password: '',
+    adminCode: ''
   })
 
-  const [isSubmitting, setisSubmitting] = useState(false);
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
@@ -27,115 +25,114 @@ const SignIn = () => {
         supabase.auth.stopAutoRefresh();
       }
     };
-  
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-  
-    // Cleanup listener on component unmount
-    return () => {
-      subscription.remove();  // Proper cleanup
-    };
+    return () => subscription.remove();
   }, []);
 
-
   const submit = async () => {
-    setisSubmitting(true);
-  
-    const adminCodeInt = parseInt(form.adminCode, 10); // Convert to integer
-    
-    const { data: { session }, error } = await supabase.auth.signInWithPassword({
-      email: form.email,
-      password: form.password,
-    });
-  
-    if (error) {
-      alert(error.message);
-    } else if (session) {
-      const { data, error: adminError } = await supabase
-        .from('profiles')
-        .select('admin_code')
-        .eq('id', session.user.id)
-        .single();
-  
-      if (adminError || data.admin_code !== adminCodeInt) {
-        alert('Admin code mismatch!');
-      } else {
-        alert('Login successful!');
-        router.push('/profile');
-      }
+    if (!form.adminCode.trim()) {
+      Alert.alert('Auth Code required', 'Please enter your admin auth code.');
+      return;
     }
-    setisSubmitting(false);
-};
+    if (!form.email.trim() || !form.password.trim()) {
+      Alert.alert('Missing fields', 'Please enter your email and password.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const adminCodeInt = parseInt(form.adminCode, 10);
+
+      const { data: { session }, error } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+
+      if (error) {
+        Alert.alert('Sign in failed', error.message);
+        return;
+      }
+
+      if (session) {
+        const { data, error: profileError } = await supabase
+          .from('profiles')
+          .select('admin_code')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError || !data || data.admin_code !== adminCodeInt) {
+          await supabase.auth.signOut();
+          Alert.alert('Access denied', 'Invalid admin code. Please try again.');
+          return;
+        }
+
+        router.replace('/(tabs)/home');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    //Whole Background becomes faded black
-    <SafeAreaView className="bg-primary h-full">
-        
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <View className="flex-1 justify-center items-center px-4">
-          <Image 
-            source={images.logoTopOneWhite}
-            resizeMode='contain' 
-            className="w-[150px] h-[85px]"
-          />
-        </View>
-        {/* All items inside view get adjusted by CSS */}
-        <View className="flex-1 justify-center items-center px-4 pb-14">
+    <SafeAreaView className="bg-primary flex-1">
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+        <View className="flex-1 justify-center px-6 py-12">
 
-          {/* Text under the logo */}
-          <Text className="text-2xl text-white font-psemibold mt-4">
-            Log in to Top One
+          {/* Logo */}
+          <View className="items-center mb-10">
+            <Image
+              source={images.logoTopOneWhite}
+              resizeMode="contain"
+              style={{ width: 160, height: 64 }}
+            />
+          </View>
+
+          {/* Title */}
+          <Text className="text-3xl text-white font-psemibold text-center mb-2">
+            Admin Login
+          </Text>
+          <Text className="text-gray-100 font-pregular text-center mb-10">
+            TopOne Salon — Richmond
           </Text>
 
+          {/* Fields */}
           <FormField
-            title="Auth ID"
+            title="Auth Code"
             value={form.adminCode}
-            handleChangeText={(e) => setForm({ ...form, adminCode: e })}
-            OtherStyles="mt-7"
-            keyboardType="default"
+            handleChangeText={(e: string) => setForm({ ...form, adminCode: e })}
+            OtherStyles="mb-5"
+            keyboardType="numeric"
+            placeholder="Enter your auth code"
           />
 
           <FormField
             title="Email"
             value={form.email}
-            handleChangeText={(e) => setForm({...form, email:e})}
-            OtherStyles='mt-7'
+            handleChangeText={(e: string) => setForm({ ...form, email: e })}
+            OtherStyles="mb-5"
             keyboardType="email-address"
+            placeholder="email@address.com"
           />
 
           <FormField
             title="Password"
             value={form.password}
-            handleChangeText={(e) => setForm({...form, password:e})}
-            OtherStyles='mt-7'
+            handleChangeText={(e: string) => setForm({ ...form, password: e })}
+            OtherStyles="mb-8"
+            secureTextEntry
+            placeholder="Password"
           />
 
-          <CustomButton 
-            title='Sign In'
+          <CustomButton
+            title="Sign In"
             handlePress={submit}
-            containerStyles="mt-7 w-full"
+            containerStyles="w-full"
+            textStyles=""
             isLoading={isSubmitting}
           />
 
-          {/* Admin Text - Positioned at the bottom */}
-          <View className="justify-center pt-5 flex-row gap-2">
-            <Text className="text-lg text-gray-100 font-pregular">
-              Dont have an Account?
-            </Text>
-            <Link href={"/sign-up"} className="text-lg font-psemibold text-secondary underline">Sign up</Link>
-          </View>
-
-          {/* Admin Text - Positioned at the bottom */}
-          <View className=" justify-center pt-20 flex-row gap-2">
-              <Text className="text-lg text-gray-100 font-pregular">
-                Forgot Password?
-              </Text>
-              <Link href="/sign-in" className="text-lg font-psemibold text-secondary underline">
-                Click Here
-              </Link>
-            </View>
         </View>
       </ScrollView>
-      
     </SafeAreaView>
   )
 }

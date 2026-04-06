@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Alert, StyleSheet, View, AppState } from 'react-native'
+import { Alert, StyleSheet, View, Text, AppState } from 'react-native'
 import { supabase } from '../lib/supabase'
 import { Button, Input } from '@rneui/themed'
 
@@ -16,151 +16,83 @@ AppState.addEventListener('change', (state) => {
 })
 
 export default function Auth() {
-  // State variables for login/signup fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');  // Full Name for signup
-  const [lastName, setLastName] = useState('');  // Full Name for signup
-  const [phoneNumber, setPhoneNumber] = useState('');  // Phone Number for signup
+  const [authCode, setAuthCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignup, setIsSignup] = useState(false); // Toggle between login and signup
 
-  // Login function
   async function signInWithEmail() {
+    if (!authCode.trim()) {
+      Alert.alert('Auth Code required', 'Please enter your auth code to continue.');
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
-    if (error) Alert.alert(error.message);
-    setLoading(false);
-  }
-
-  // Signup function
-  async function signUpWithEmail() {
-    setLoading(true);
-    
-    const { data: { user }, error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      
-    });
-  
     if (error) {
       Alert.alert(error.message);
-    } else if (user) {
-      // Insert full name and phone number into the profiles table
-      const { error: profileError } = await supabase
+    } else if (data.user) {
+      await supabase
         .from('profiles')
-        .upsert({ id: user.id, updated_at: new Date(), first_name:firstName, last_name:lastName, phone_number:phoneNumber});
-  
-      if (profileError) {
-        console.log('Profile Insert Error:', profileError);
-      } else {
-        console.log('Profile Insert Success');
-      }
+        .update({ admin_code: Number(authCode.trim()) })
+        .eq('id', data.user.id);
     }
-  
     setLoading(false);
   }
+
+  const inputStyle = { color: '#FFFFFF' };
+  const labelStyle = { color: '#CDCDE0' };
+  const iconColor = '#8ED1FC';
 
   return (
     <View style={styles.container}>
-      {isSignup ? (
-        <>
-          {/* Signup Form */}
-          <View style={[styles.verticallySpaced, styles.mt20]}>
-            <Input
-              label="First Name"
-              leftIcon={{ type: 'font-awesome', name: 'first_name' }}
-              onChangeText={(text) => setFirstName(text)}
-              value={firstName}
-              placeholder="Enter your full name"
-              autoCapitalize="words"
-            />
-          </View>
-          <View style={[styles.verticallySpaced, styles.mt20]}>
-            <Input
-              label="Last Name"
-              leftIcon={{ type: 'font-awesome', name: 'last_name' }}
-              onChangeText={(text) => setLastName(text)}
-              value={lastName}
-              placeholder="Enter your full name"
-              autoCapitalize="words"
-            />
-          </View>
-          <View style={styles.verticallySpaced}>
-            <Input
-              label="Phone Number"
-              leftIcon={{ type: 'font-awesome', name: 'phone' }}
-              onChangeText={(text) => setPhoneNumber(text)}
-              value={phoneNumber}
-              placeholder="Enter your phone number"
-              keyboardType="phone-pad"
-            />
-          </View>
-          <View style={styles.verticallySpaced}>
-            <Input
-              label="Email"
-              leftIcon={{ type: 'font-awesome', name: 'envelope' }}
-              onChangeText={(text) => setEmail(text)}
-              value={email}
-              placeholder="email@address.com"
-              autoCapitalize="none"
-            />
-          </View>
-          <View style={styles.verticallySpaced}>
-            <Input
-              label="Password"
-              leftIcon={{ type: 'font-awesome', name: 'lock' }}
-              onChangeText={(text) => setPassword(text)}
-              value={password}
-              secureTextEntry={true}
-              placeholder="Password"
-              autoCapitalize="none"
-            />
-          </View>
-          <View style={[styles.verticallySpaced, styles.mt20]}>
-            <Button title="Sign up" disabled={loading} onPress={signUpWithEmail} />
-          </View>
-        </>
-      ) : (
-        <>
-          {/* Login Form */}
-          <View style={[styles.verticallySpaced, styles.mt20]}>
-            <Input
-              label="Email"
-              leftIcon={{ type: 'font-awesome', name: 'envelope' }}
-              onChangeText={(text) => setEmail(text)}
-              value={email}
-              placeholder="email@address.com"
-              autoCapitalize="none"
-            />
-          </View>
-          <View style={styles.verticallySpaced}>
-            <Input
-              label="Password"
-              leftIcon={{ type: 'font-awesome', name: 'lock' }}
-              onChangeText={(text) => setPassword(text)}
-              value={password}
-              secureTextEntry={true}
-              placeholder="Password"
-              autoCapitalize="none"
-            />
-          </View>
-          <View style={[styles.verticallySpaced, styles.mt20]}>
-            <Button title="Sign in" disabled={loading} onPress={signInWithEmail} />
-          </View>
-        </>
-      )}
-
-      {/* Toggle between login and signup */}
+      <Text style={styles.title}>Log In</Text>
       <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button
-          title={isSignup ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
-          onPress={() => setIsSignup(!isSignup)}
+        <Input
+          label="Auth Code"
+          leftIcon={{ type: 'font-awesome', name: 'key', color: iconColor }}
+          onChangeText={(text) => setAuthCode(text)}
+          value={authCode}
+          placeholder="Enter auth code"
+          placeholderTextColor="#7B7B8B"
+          autoCapitalize="none"
+          keyboardType="numeric"
+          inputStyle={inputStyle}
+          labelStyle={labelStyle}
         />
+      </View>
+      <View style={styles.verticallySpaced}>
+        <Input
+          label="Email"
+          leftIcon={{ type: 'font-awesome', name: 'envelope', color: iconColor }}
+          onChangeText={(text) => setEmail(text)}
+          value={email}
+          placeholder="email@address.com"
+          placeholderTextColor="#7B7B8B"
+          autoCapitalize="none"
+          inputStyle={inputStyle}
+          labelStyle={labelStyle}
+        />
+      </View>
+      <View style={styles.verticallySpaced}>
+        <Input
+          label="Password"
+          leftIcon={{ type: 'font-awesome', name: 'lock', color: iconColor }}
+          onChangeText={(text) => setPassword(text)}
+          value={password}
+          secureTextEntry={true}
+          placeholder="Password"
+          placeholderTextColor="#7B7B8B"
+          autoCapitalize="none"
+          inputStyle={inputStyle}
+          labelStyle={labelStyle}
+        />
+      </View>
+      <View style={[styles.verticallySpaced, styles.mt20]}>
+        <Button title="Sign in" disabled={loading} onPress={signInWithEmail} />
       </View>
     </View>
   );
@@ -170,6 +102,13 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 40,
     padding: 12,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   verticallySpaced: {
     paddingTop: 4,

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, SafeAreaView, Image, Text, Alert } from 'react-native';
-import { supabase } from '../../lib/supabase';  // Adjust the path as necessary
+import { View, ScrollView, TouchableOpacity, Image, Text, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../../lib/supabase';
 import CategorySelector from '../../components/CategorySelector';
 import ServiceList from '../../components/ServiceList';
 import AddServiceForm from '../../components/AddServiceForm';
 import RolesModal from '../../components/RolesModal';
-import { images } from "../../constants"; 
+import { images, icons } from '../../constants';
 
 const Services = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Cuts');
-  const [servicesData, setServicesData] = useState({});
+  const [servicesData, setServicesData] = useState<Record<string, any[]>>({});
   const [selectedService, setSelectedService] = useState(null);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -33,16 +34,13 @@ const Services = () => {
         .from('services')
         .select('id, main_category, service_category, service, role, price');
 
-      if (error) {
-        console.error(error);
-        return;
-      }
+      if (error) { console.error(error); return; }
 
-      const organizedData = data.reduce((acc, service) => {
-        const { main_category, service_category, service: serviceName, role, price, id } = service;
+      const organizedData = data.reduce((acc: Record<string, any[]>, item: any) => {
+        const { main_category, service_category, service: serviceName, role, price, id } = item;
         if (!acc[main_category]) acc[main_category] = [];
-        let existingGroup = acc[main_category].find(
-          group => group.service === serviceName && group.service_category === service_category
+        const existingGroup = acc[main_category].find(
+          (g: any) => g.service === serviceName && g.service_category === service_category
         );
         if (existingGroup) {
           existingGroup.roles.push({ role, price, id });
@@ -60,45 +58,31 @@ const Services = () => {
     }
   };
 
-  const handleDetails = (group) => {
+  const handleDetails = (group: any) => {
     setSelectedService(group);
     setShowRolesModal(true);
   };
 
   const handleAddService = async () => {
     if (!serviceCategory || !service || !price || !role || !duration) {
-      alert('Please fill in all fields');
+      Alert.alert('Missing fields', 'Please fill in all fields.');
       return;
     }
-
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('services')
-        .insert([
-          {
-            main_category: mainCategory,
-            service_category: serviceCategory,
-            service: service,
-            price: Number(price),
-            role: role,
-            duration: Number(duration)
-          }
-        ]);
-
-      if (error) {
-        console.error(error);
-        alert('Error adding service');
-      } else {
-        alert('Service added successfully');
-        setServiceCategory('');
-        setService('');
-        setPrice('');
-        setRole('');
-        setDuration('');
-        setShowAddForm(false); // Hide the form after adding
-        await fetchServices(); // Refresh the list after adding the service
-      }
+      const { error } = await supabase.from('services').insert([{
+        main_category: mainCategory,
+        service_category: serviceCategory,
+        service,
+        price: Number(price),
+        role,
+        duration: Number(duration),
+      }]);
+      if (error) { Alert.alert('Error', 'Could not add service.'); return; }
+      Alert.alert('Success', 'Service added.');
+      setServiceCategory(''); setService(''); setPrice(''); setRole(''); setDuration('');
+      setShowAddForm(false);
+      await fetchServices();
     } catch (error) {
       console.error('Error adding service:', error);
     } finally {
@@ -106,103 +90,85 @@ const Services = () => {
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    try {
-      const { error } = await supabase
-        .from('services')
-        .delete()
-        .eq('id', roleId);
-
-      if (error) {
-        console.error('Error deleting role:', error);
-      } else {
-        alert('Role deleted successfully');
-        await fetchServices(); // Refresh the services list
-      }
-    } catch (error) {
-      console.error('Error deleting role:', error);
-    }
+  const handleDeleteRole = async (roleId: string) => {
+    const { error } = await supabase.from('services').delete().eq('id', roleId);
+    if (error) { console.error('Error deleting role:', error); return; }
+    await fetchServices();
   };
 
-  const handleDeleteCategory = async (category) => {
-  Alert.alert(
-    'Delete Category',
-    `Are you sure you want to delete the category "${category}" and all its services?`,
-    [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        onPress: async () => {
-          try {
-            // Delete all services where service_category matches the selected category
-            const { error } = await supabase
-              .from('services')
-              .delete()
-              .eq('service_category', category); // This will remove all services in the category
-
-            if (error) {
-              console.error('Error deleting category:', error);
-            } else {
-              alert(`Category "${category}" deleted successfully`);
-              await fetchServices(); // Refresh the services list after deletion
-            }
-          } catch (error) {
-            console.error('Error deleting category:', error);
-          }
-        }
-      }
-    ]
-  );
-};
-
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center">
-        <Text>Loading services...</Text>
-      </View>
+  const handleDeleteCategory = async (category: string) => {
+    Alert.alert(
+      'Delete Category',
+      `Delete "${category}" and all its services?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            const { error } = await supabase.from('services').delete().eq('service_category', category);
+            if (error) { console.error('Error deleting category:', error); return; }
+            await fetchServices();
+          },
+        },
+      ]
     );
-  }
+  };
 
   return (
-    <SafeAreaView>
-      <ScrollView>
-        {/* Logo Section */}
-        <View className="items-center mt-14 mb-8">
-          <Image 
-            source={images.logoTopOneSmall} 
-            className="w-40 h-16"
+    <SafeAreaView className="bg-primary flex-1">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+
+        {/* Header */}
+        <View className="items-center pt-6 pb-4 px-4">
+          <Image
+            source={images.logoTopOneWhite}
+            style={{ width: 200, height: 80 }}
             resizeMode="contain"
           />
-          <Text className="text-lg mt-6">TopOne Salon - Richmond</Text>
+          <Text className="text-white font-psemibold text-xl mt-3">TopOne Salon</Text>
+          <Text className="text-gray-100 font-pregular text-sm">Richmond</Text>
         </View>
 
-        {/* Category Selector */}
-        <CategorySelector
-          servicesData={servicesData}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-        />
+        {/* Divider */}
+        <View className="h-px bg-black-200 mx-4 mb-4" />
 
-        {/* Grouped Services Section */}
-        <ServiceList
-          servicesData={servicesData}
-          selectedCategory={selectedCategory}
-          handleDetails={handleDetails} // Updated from "handleBook"
-          handleDeleteCategory={handleDeleteCategory} // Passing delete function for category
-        />
-
-        {/* Add New Service Button */}
-        <TouchableOpacity onPress={() => setShowAddForm(true)}>
-          <View className="p-4 bg-blue-500 rounded">
-            <Text className="text-center text-white">Add New Service</Text>
+        {loading ? (
+          <View className="py-20 items-center">
+            <ActivityIndicator size="large" color="#8ED1FC" />
           </View>
+        ) : (
+          <>
+            {/* Category Selector */}
+            <CategorySelector
+              servicesData={servicesData}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
+
+            {/* Service List */}
+            <ServiceList
+              servicesData={servicesData}
+              selectedCategory={selectedCategory}
+              handleDetails={handleDetails}
+              handleDeleteCategory={handleDeleteCategory}
+            />
+          </>
+        )}
+
+        {/* Add Service Button */}
+        <TouchableOpacity
+          onPress={() => setShowAddForm(true)}
+          className="mx-4 mt-6 bg-secondary rounded-xl py-4 flex-row items-center justify-center"
+        >
+          <Image source={icons.plus} className="w-5 h-5 mr-2" tintColor="#161622" resizeMode="contain" />
+          <Text className="text-primary font-psemibold text-base">Add New Service</Text>
         </TouchableOpacity>
 
         {/* Add Service Form */}
         {showAddForm && (
           <AddServiceForm
             mainCategory={mainCategory}
+            setMainCategory={setMainCategory}
+            existingCategories={Object.keys(servicesData)}
             serviceCategory={serviceCategory}
             service={service}
             price={price}
@@ -223,7 +189,7 @@ const Services = () => {
           selectedService={selectedService}
           showRolesModal={showRolesModal}
           setShowRolesModal={setShowRolesModal}
-          handleDeleteRole={handleDeleteRole} // Pass role delete function
+          handleDeleteRole={handleDeleteRole}
         />
       </ScrollView>
     </SafeAreaView>

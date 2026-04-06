@@ -88,11 +88,11 @@ export default function Account({ session }: { session: Session }) {
   }
 
   return (
-  <SafeAreaView className="">
+  <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
     <View style={styles.container}>
     <View className="flex-1 justify-center items-center px-4 pb-8">
-      <Text className="text-2xl text-black font-psemibold">
+      <Text className="text-2xl text-white font-psemibold">
             Profile
       </Text>
       </View>
@@ -101,18 +101,18 @@ export default function Account({ session }: { session: Session }) {
         title="Admin Code"
         value={adminCode?.toString() || ''}
         placeholder="Admin Code"
-        titleColor="text-black"
+        titleColor="text-gray-100"
         editable={false}
-        textColor="grey"
+        textColor="#CDCDE0"
       />
 
       <FormField
         title="Email"
         value={session?.user?.email || ''}
         placeholder="User email"
-        titleColor="text-black"
+        titleColor="text-gray-100"
         editable={false}
-        textColor="grey"
+        textColor="#CDCDE0"
         OtherStyles="mt-5"
       />     
 
@@ -122,7 +122,7 @@ export default function Account({ session }: { session: Session }) {
         handleChangeText={setFirstName}
         placeholder="Enter your full name"
         OtherStyles="mt-5"
-        titleColor="text-black"
+        titleColor="text-gray-100"
       />
        <FormField
         title="Last Name"
@@ -130,7 +130,7 @@ export default function Account({ session }: { session: Session }) {
         handleChangeText={setLastName}
         placeholder="Enter your full name"
         OtherStyles="mt-5"
-        titleColor="text-black"
+        titleColor="text-gray-100"
       />
       <FormField
         title="Phone Number"
@@ -139,7 +139,7 @@ export default function Account({ session }: { session: Session }) {
         placeholder="Enter your phone number"
         OtherStyles="mt-5"
         keyboardType="phone-pad"
-        titleColor="text-black"
+        titleColor="text-gray-100"
       />
 
       
