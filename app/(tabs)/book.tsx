@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { images, icons } from '../../constants';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ UUID helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const generateUUID = (): string =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type Message = {
   id: string;
   user_id: string;
+  conversation_id: string;
   sender_is_admin: boolean;
   content: string;
   created_at: string;
@@ -27,15 +35,24 @@ type Message = {
 };
 
 type Conversation = {
+  conversation_id: string;
   user_id: string;
   first_name: string;
   last_name: string;
   last_message: string;
   last_message_at: string;
+  started_at: string;
   unread_count: number;
 };
 
-// ─── Component ──────────────────────────────────────────────────────────────
+type UserConversation = {
+  conversation_id: string;
+  last_message: string;
+  last_message_at: string;
+  started_at: string;
+};
+
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const Book = () => {
   const [userId, setUserId] = useState<string | null>(null);
@@ -44,38 +61,34 @@ const Book = () => {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
 
-  // Customer view
+  // Customer: conversation list
+  const [userConversations, setUserConversations] = useState<UserConversation[]>([]);
+  // Customer: active thread
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const customerListRef = useRef<FlatList>(null);
 
-  // Admin conversation list view
+  // Admin: conversation list
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(false);
-
-  // Admin: open conversation
+  // Admin: open thread
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [convMessages, setConvMessages] = useState<Message[]>([]);
   const adminListRef = useRef<FlatList>(null);
 
-  // ─── Init ──────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  useEffect(() => {
-    initUser();
-  }, []);
+  useEffect(() => { initUser(); }, []);
 
   const initUser = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) { setLoading(false); return; }
-
       const uid = session.user.id;
       setUserId(uid);
 
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('admin_code')
-        .eq('id', uid)
-        .single();
+        .from('profiles').select('admin_code').eq('id', uid).single();
 
       const admin = !!(profile?.admin_code);
       setIsAdmin(admin);
@@ -83,7 +96,7 @@ const Book = () => {
       if (admin) {
         await fetchConversations();
       } else {
-        await fetchMessages(uid);
+        await fetchUserConversations(uid);
       }
     } catch (err) {
       console.error('initUser error:', err);
@@ -92,24 +105,62 @@ const Book = () => {
     }
   };
 
-  // ─── Customer: fetch & send ───────────────────────────────────────────────
+  // â”€â”€â”€ Customer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  const fetchMessages = async (uid: string) => {
+  const fetchUserConversations = async (uid: string) => {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select('conversation_id, content, created_at')
       .eq('user_id', uid)
+      .not('conversation_id', 'is', null)
+      .order('created_at', { ascending: false });
+    if (error) { console.error('fetchUserConversations error:', error.message); return; }
+
+    const map: Record<string, UserConversation> = {};
+    for (const m of data ?? []) {
+      if (!map[m.conversation_id]) {
+        map[m.conversation_id] = {
+          conversation_id: m.conversation_id,
+          last_message: m.content,
+          last_message_at: m.created_at,
+          started_at: m.created_at,
+        };
+      } else {
+        // Descending order means later items are older â†’ track earliest
+        map[m.conversation_id].started_at = m.created_at;
+      }
+    }
+    setUserConversations(
+      Object.values(map).sort(
+        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+    );
+  };
+
+  const openUserConversation = async (convId: string) => {
+    setActiveConvId(convId);
+    setMessages([]);
+    const { data, error } = await supabase
+      .from('messages').select('*')
+      .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
     if (!error) setMessages(data ?? []);
+    else Alert.alert('Could not load messages', error.message);
+  };
+
+  const startNewConversation = () => {
+    setActiveConvId(generateUUID());
+    setMessages([]);
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !userId) return;
+    if (!inputText.trim() || !userId || !activeConvId) return;
     const content = inputText.trim();
     setInputText('');
     setSending(true);
     const { error } = await supabase.from('messages').insert({
       user_id: userId,
+      conversation_id: activeConvId,
       sender_is_admin: false,
       content,
       is_read: false,
@@ -118,38 +169,51 @@ const Book = () => {
     setSending(false);
   };
 
-  // ─── Admin: conversations list ───────────────────────────────────────────
+  // â”€â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const fetchConversations = async () => {
     setLoadingConvs(true);
     try {
-      const { data, error } = await supabase
+      const { data: msgs, error } = await supabase
         .from('messages')
-        .select('user_id, content, created_at, is_read, sender_is_admin, profiles(first_name, last_name)')
+        .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin')
+        .not('conversation_id', 'is', null)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
 
+      const userIds = [...new Set((msgs ?? []).map((m) => m.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles').select('id, first_name, last_name').in('id', userIds);
+
+      const profileMap: Record<string, { first_name: string; last_name: string }> = {};
+      for (const p of profiles ?? []) {
+        profileMap[p.id] = { first_name: p.first_name ?? 'Customer', last_name: p.last_name ?? '' };
+      }
+
       const map: Record<string, Conversation> = {};
-      for (const m of data ?? []) {
-        if (!map[m.user_id]) {
-          const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-          map[m.user_id] = {
+      for (const m of msgs ?? []) {
+        const key = m.conversation_id;
+        if (!map[key]) {
+          map[key] = {
+            conversation_id: key,
             user_id: m.user_id,
-            first_name: (profile as any)?.first_name ?? 'Customer',
-            last_name: (profile as any)?.last_name ?? '',
+            first_name: profileMap[m.user_id]?.first_name ?? 'Customer',
+            last_name: profileMap[m.user_id]?.last_name ?? '',
             last_message: m.content,
             last_message_at: m.created_at,
+            started_at: m.created_at,
             unread_count: 0,
           };
+        } else {
+          map[key].started_at = m.created_at;
         }
-        if (!m.sender_is_admin && !m.is_read) {
-          map[m.user_id].unread_count++;
-        }
+        if (!m.sender_is_admin && !m.is_read) map[key].unread_count++;
       }
-      setConversations(Object.values(map).sort(
-        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-      ));
+      setConversations(
+        Object.values(map).sort(
+          (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+        )
+      );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not load conversations.');
     } finally {
@@ -157,26 +221,19 @@ const Book = () => {
     }
   };
 
-  // ─── Admin: open a conversation ──────────────────────────────────────────
-
   const openConversation = async (conv: Conversation) => {
     setSelectedConv(conv);
+    setConvMessages([]);
     const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('user_id', conv.user_id)
+      .from('messages').select('*')
+      .eq('conversation_id', conv.conversation_id)
       .order('created_at', { ascending: true });
     if (!error) setConvMessages(data ?? []);
 
-    // Mark customer messages as read
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('user_id', conv.user_id)
-      .eq('sender_is_admin', false)
-      .eq('is_read', false);
+    await supabase.from('messages').update({ is_read: true })
+      .eq('conversation_id', conv.conversation_id)
+      .eq('sender_is_admin', false).eq('is_read', false);
 
-    // Refresh unread counts
     await fetchConversations();
   };
 
@@ -187,6 +244,7 @@ const Book = () => {
     setSending(true);
     const { error } = await supabase.from('messages').insert({
       user_id: selectedConv.user_id,
+      conversation_id: selectedConv.conversation_id,
       sender_is_admin: true,
       content,
       is_read: false,
@@ -195,23 +253,24 @@ const Book = () => {
     setSending(false);
   };
 
-  // ─── Realtime subscription ───────────────────────────────────────────────
+  // â”€â”€â”€ Realtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     if (!userId) return;
-
     const channel = supabase
       .channel('messages-realtime')
-      .on(
-        'postgres_changes',
+      .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const msg = payload.new as Message;
-          if (!isAdmin && msg.user_id === userId) {
-            setMessages((prev) => [...prev, msg]);
-            setTimeout(() => customerListRef.current?.scrollToEnd({ animated: true }), 100);
-          } else if (isAdmin) {
-            if (selectedConv && msg.user_id === selectedConv.user_id) {
+          if (!isAdmin) {
+            if (msg.user_id === userId && msg.conversation_id === activeConvId) {
+              setMessages((prev) => [...prev, msg]);
+              setTimeout(() => customerListRef.current?.scrollToEnd({ animated: true }), 100);
+            }
+            if (msg.user_id === userId) fetchUserConversations(userId);
+          } else {
+            if (selectedConv && msg.conversation_id === selectedConv.conversation_id) {
               setConvMessages((prev) => [...prev, msg]);
               setTimeout(() => adminListRef.current?.scrollToEnd({ animated: true }), 100);
             }
@@ -220,23 +279,69 @@ const Book = () => {
         }
       )
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
-  }, [userId, isAdmin, selectedConv]);
+  }, [userId, isAdmin, selectedConv, activeConvId]);
 
-  // ─── Shared: message bubble renderer ─────────────────────────────────────
+  // â”€â”€â”€ Shared: bubble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  const BOOKING_PREFIX = 'BOOKING_REQUEST';
 
   const renderBubble = (msg: Message) => {
     const isMine = isAdmin ? msg.sender_is_admin : !msg.sender_is_admin;
+    const isBookingRequest = isAdmin && !msg.sender_is_admin && msg.content.startsWith(BOOKING_PREFIX);
+
+    // ── Admin sees booking requests as a highlight card ──────────────────────
+    if (isBookingRequest) {
+      // Strip the prefix and the wait note at the bottom
+      const withoutPrefix = msg.content.replace(/^BOOKING_REQUEST\s*/, '');
+      // Split on the \n\n to separate the main line from the "(Please ... wait)" note
+      const parts = withoutPrefix.split('\n\n');
+      const mainLine = parts[0].trim();   // "John would like to book for ..."
+      const note = parts[1]?.replace(/^\(|\)$/g, '').trim(); // "Please John wait for an admin to respond"
+
+      return (
+        <View key={msg.id} style={{ marginHorizontal: 12, marginVertical: 8 }}>
+          {/* Card */}
+          <View
+            style={{
+              backgroundColor: '#1A1A2E',
+              borderRadius: 16,
+              borderWidth: 1.5,
+              borderColor: '#8ED1FC',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Coloured header bar */}
+            <View style={{ backgroundColor: '#8ED1FC', paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image source={icons.scissors} style={{ width: 16, height: 16 }} tintColor="#161622" resizeMode="contain" />
+              <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                New Booking Request
+              </Text>
+            </View>
+            {/* Body */}
+            <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600', lineHeight: 24 }}>
+                {mainLine}
+              </Text>
+              {!!note && (
+                <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>
+                  {note}
+                </Text>
+              )}
+            </View>
+          </View>
+          <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 4, marginHorizontal: 4 }}>
+            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+      );
+    }
+
+    // ── Regular bubble ────────────────────────────────────────────────────────
     return (
       <View
         key={msg.id}
-        style={{
-          alignSelf: isMine ? 'flex-end' : 'flex-start',
-          maxWidth: '78%',
-          marginVertical: 3,
-          marginHorizontal: 16,
-        }}
+        style={{ alignSelf: isMine ? 'flex-end' : 'flex-start', maxWidth: '78%', marginVertical: 3, marginHorizontal: 16 }}
       >
         <View
           style={{
@@ -252,34 +357,22 @@ const Book = () => {
             {msg.content}
           </Text>
         </View>
-        <Text
-          style={{
-            color: '#7B7B8B',
-            fontSize: 11,
-            marginTop: 2,
-            marginHorizontal: 4,
-            alignSelf: isMine ? 'flex-end' : 'flex-start',
-          }}
-        >
+        <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 2, marginHorizontal: 4, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
     );
   };
 
-  // ─── Shared: input bar ────────────────────────────────────────────────────
+  // â”€â”€â”€ Shared: input bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const renderInputBar = (onSend: () => void) => (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#232533',
-        backgroundColor: '#161622',
-        gap: 8,
+        flexDirection: 'row', alignItems: 'flex-end',
+        paddingHorizontal: 12, paddingVertical: 10,
+        borderTopWidth: 1, borderTopColor: '#232533',
+        backgroundColor: '#161622', gap: 8,
       }}
     >
       <TextInput
@@ -289,15 +382,9 @@ const Book = () => {
         placeholderTextColor="#7B7B8B"
         multiline
         style={{
-          flex: 1,
-          backgroundColor: '#232533',
-          color: '#FFFFFF',
-          borderRadius: 20,
-          paddingHorizontal: 16,
-          paddingTop: 10,
-          paddingBottom: 10,
-          fontSize: 15,
-          maxHeight: 120,
+          flex: 1, backgroundColor: '#232533', color: '#FFFFFF',
+          borderRadius: 20, paddingHorizontal: 16,
+          paddingTop: 10, paddingBottom: 10, fontSize: 15, maxHeight: 120,
         }}
         onSubmitEditing={onSend}
         blurOnSubmit={false}
@@ -306,12 +393,9 @@ const Book = () => {
         onPress={onSend}
         disabled={sending || !inputText.trim()}
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
+          width: 44, height: 44, borderRadius: 22,
           backgroundColor: inputText.trim() ? '#8ED1FC' : '#232533',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: 'center', justifyContent: 'center',
         }}
         activeOpacity={0.8}
       >
@@ -329,7 +413,7 @@ const Book = () => {
     </View>
   );
 
-  // ─── Views ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   if (loading) {
     return (
@@ -342,64 +426,36 @@ const Book = () => {
   if (!userId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+        <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center' }}>
           Please sign in to access messages.
         </Text>
       </SafeAreaView>
     );
   }
 
-  // ── Admin: conversation thread ──────────────────────────────────────────
+  // â”€â”€ Admin: conversation thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isAdmin && selectedConv) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: '#232533',
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => { setSelectedConv(null); setConvMessages([]); }}
-            style={{ marginRight: 12 }}
-          >
-            <Image
-              source={icons.leftArrow}
-              style={{ width: 22, height: 22 }}
-              tintColor="#8ED1FC"
-              resizeMode="contain"
-            />
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+          <TouchableOpacity onPress={() => { setSelectedConv(null); setConvMessages([]); }} style={{ marginRight: 12 }}>
+            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
           </TouchableOpacity>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: '#232533',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 10,
-            }}
-          >
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
             <Text style={{ color: '#8ED1FC', fontSize: 17, fontWeight: '600' }}>
               {selectedConv.first_name.charAt(0).toUpperCase()}
             </Text>
           </View>
-          <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600', flex: 1 }}>
-            {selectedConv.first_name} {selectedConv.last_name}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>
+              {selectedConv.first_name} {selectedConv.last_name}
+            </Text>
+            <Text style={{ color: '#7B7B8B', fontSize: 12 }}>
+              Started {new Date(selectedConv.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
+            </Text>
+          </View>
         </View>
-
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={0}
-        >
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
           <FlatList
             ref={adminListRef}
             data={convMessages}
@@ -408,7 +464,7 @@ const Book = () => {
             contentContainerStyle={{ paddingVertical: 12 }}
             onContentSizeChange={() => adminListRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
-              <View style={{ flex: 1, alignItems: 'center', paddingTop: 40 }}>
+              <View style={{ alignItems: 'center', paddingTop: 40 }}>
                 <Text style={{ color: '#7B7B8B', fontSize: 14 }}>No messages yet.</Text>
               </View>
             }
@@ -419,32 +475,19 @@ const Book = () => {
     );
   }
 
-  // ── Admin: conversation list ────────────────────────────────────────────
+  // â”€â”€ Admin: conversation list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isAdmin) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-        {/* Header */}
         <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 12 }}>
-          <Image
-            source={images.logoTopOneWhite}
-            style={{ width: 160, height: 64 }}
-            resizeMode="contain"
-          />
+          <Image source={images.logoTopOneWhite} style={{ width: 160, height: 64 }} resizeMode="contain" />
         </View>
-        <View
-          style={{
-            paddingHorizontal: 20,
-            paddingBottom: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: '#232533',
-          }}
-        >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
           <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
           <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }}>
             {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
           </Text>
         </View>
-
         {loadingConvs ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color="#8ED1FC" />
@@ -458,78 +501,37 @@ const Book = () => {
         ) : (
           <FlatList
             data={conversations}
-            keyExtractor={(c) => c.user_id}
+            keyExtractor={(c) => c.conversation_id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => openConversation(item)}
                 activeOpacity={0.75}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 20,
-                  paddingVertical: 14,
-                  borderBottomWidth: 1,
-                  borderBottomColor: '#232533',
-                }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#232533' }}
               >
-                {/* Avatar */}
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: '#232533',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 14,
-                  }}
-                >
-                  <Text style={{ color: '#8ED1FC', fontSize: 20, fontWeight: '600' }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                  <Text style={{ color: '#8ED1FC', fontSize: 22, fontWeight: '700' }}>
                     {item.first_name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
-
-                {/* Text */}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: item.unread_count > 0 ? '700' : '400' }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', letterSpacing: 0.2 }}>
                     {item.first_name} {item.last_name}
                   </Text>
-                  <Text
-                    style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }}
-                    numberOfLines={1}
-                  >
+                  <Text style={{ color: '#8ED1FC', fontSize: 11, marginTop: 2 }}>
+                    {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                  <Text style={{ color: '#CDCDE0', fontSize: 14, marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
                     {item.last_message}
                   </Text>
                 </View>
-
-                {/* Unread badge */}
                 {item.unread_count > 0 && (
-                  <View
-                    style={{
-                      backgroundColor: '#8ED1FC',
-                      borderRadius: 12,
-                      minWidth: 24,
-                      height: 24,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingHorizontal: 6,
-                      marginLeft: 8,
-                    }}
-                  >
-                    <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700' }}>
-                      {item.unread_count}
-                    </Text>
+                  <View style={{ backgroundColor: '#8ED1FC', borderRadius: 12, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginLeft: 8 }}>
+                    <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700' }}>{item.unread_count}</Text>
                   </View>
                 )}
-
-                <Image
-                  source={icons.rightArrow}
-                  style={{ width: 16, height: 16, marginLeft: 8 }}
-                  tintColor="#7B7B8B"
-                  resizeMode="contain"
-                />
+                <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#7B7B8B" resizeMode="contain" />
               </TouchableOpacity>
             )}
           />
@@ -538,74 +540,100 @@ const Book = () => {
     );
   }
 
-  // ── Customer: chat thread ───────────────────────────────────────────────
+  // â”€â”€ Customer: active thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  if (activeConvId) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+          <TouchableOpacity
+            onPress={() => { setActiveConvId(null); setMessages([]); if (userId) fetchUserConversations(userId); }}
+            style={{ marginRight: 12 }}
+          >
+            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+          </TouchableOpacity>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+            <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+          </View>
+          <View>
+            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>TopOne Salon</Text>
+            <Text style={{ color: '#7B7B8B', fontSize: 12 }}>Richmond</Text>
+          </View>
+        </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+          <FlatList
+            ref={customerListRef}
+            data={messages}
+            keyExtractor={(m) => m.id}
+            renderItem={({ item }) => renderBubble(item)}
+            contentContainerStyle={{ paddingVertical: 12 }}
+            onContentSizeChange={() => customerListRef.current?.scrollToEnd({ animated: false })}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
+                <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+                  Send your first message to{'\n'}TopOne Salon!
+                </Text>
+              </View>
+            }
+          />
+          {renderInputBar(sendMessage)}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // â”€â”€ Customer: conversation list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: 12,
-          borderBottomWidth: 1,
-          borderBottomColor: '#232533',
-        }}
-      >
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: '#232533',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 12,
-          }}
-        >
-          <Image
-            source={icons.scissors}
-            style={{ width: 22, height: 22 }}
-            tintColor="#8ED1FC"
-            resizeMode="contain"
-          />
-        </View>
-        <View>
-          <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>TopOne Salon</Text>
-          <Text style={{ color: '#7B7B8B', fontSize: 12 }}>Richmond</Text>
-        </View>
+      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
+      <TouchableOpacity
+        onPress={startNewConversation}
+        style={{ margin: 16, backgroundColor: '#8ED1FC', borderRadius: 16, height: 56, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+        activeOpacity={0.8}
       >
+        <Image source={icons.plus} style={{ width: 20, height: 20 }} tintColor="#161622" resizeMode="contain" />
+        <Text style={{ color: '#161622', fontSize: 16, fontWeight: '600' }}>New Conversation</Text>
+      </TouchableOpacity>
+
+      {userConversations.length === 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Image source={icons.scissors} style={{ width: 64, height: 64, marginBottom: 16, opacity: 0.4 }} tintColor="#CDCDE0" resizeMode="contain" />
+          <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+            No conversations yet.{'\n'}Tap "New Conversation" to get started.
+          </Text>
+        </View>
+      ) : (
         <FlatList
-          ref={customerListRef}
-          data={messages}
-          keyExtractor={(m) => m.id}
-          renderItem={({ item }) => renderBubble(item)}
-          contentContainerStyle={{ paddingVertical: 12 }}
-          onContentSizeChange={() => customerListRef.current?.scrollToEnd({ animated: false })}
+          data={userConversations}
+          keyExtractor={(c) => c.conversation_id}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
-              <Image
-                source={icons.scissors}
-                style={{ width: 64, height: 64, marginBottom: 16, opacity: 0.4 }}
-                tintColor="#CDCDE0"
-                resizeMode="contain"
-              />
-              <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
-                Send a message to TopOne Salon.{'\n'}We'll get back to you shortly!
-              </Text>
-            </View>
-          }
+          contentContainerStyle={{ paddingBottom: 24 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              onPress={() => openUserConversation(item.conversation_id)}
+              activeOpacity={0.75}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#232533' }}
+            >
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>TopOne Salon</Text>
+                <Text style={{ color: '#8ED1FC', fontSize: 11, marginTop: 1 }}>
+                  {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
+                </Text>
+                <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }} numberOfLines={1}>
+                  {item.last_message}
+                </Text>
+              </View>
+              <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#7B7B8B" resizeMode="contain" />
+            </TouchableOpacity>
+          )}
         />
-        {renderInputBar(sendMessage)}
-      </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 };

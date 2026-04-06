@@ -1,12 +1,7 @@
-import React, { useState } from 'react'
-import { Alert, StyleSheet, View, Text, AppState } from 'react-native'
+﻿import React, { useState } from 'react'
+import { Alert, View, Text, TextInput, TouchableOpacity, ActivityIndicator, AppState } from 'react-native'
 import { supabase } from '../lib/supabase'
-import { Button, Input } from '@rneui/themed'
 
-// Tells Supabase Auth to continuously refresh the session automatically if
-// the app is in the foreground. When this is added, you will continue to receive
-// `onAuthStateChange` events with the `TOKEN_REFRESHED` or `SIGNED_OUT` event
-// if the user's session is terminated. This should only be registered once.
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {
     supabase.auth.startAutoRefresh()
@@ -43,79 +38,60 @@ export default function Auth() {
     setLoading(false);
   }
 
-  const inputStyle = { color: '#FFFFFF' };
-  const labelStyle = { color: '#CDCDE0' };
-  const iconColor = '#8ED1FC';
+  const inputClass = "bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-1";
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Log In</Text>
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Input
-          label="Auth Code"
-          leftIcon={{ type: 'font-awesome', name: 'key', color: iconColor }}
-          onChangeText={(text) => setAuthCode(text)}
-          value={authCode}
-          placeholder="Enter auth code"
-          placeholderTextColor="#7B7B8B"
-          autoCapitalize="none"
-          keyboardType="numeric"
-          inputStyle={inputStyle}
-          labelStyle={labelStyle}
-        />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Input
-          label="Email"
-          leftIcon={{ type: 'font-awesome', name: 'envelope', color: iconColor }}
-          onChangeText={(text) => setEmail(text)}
-          value={email}
-          placeholder="email@address.com"
-          placeholderTextColor="#7B7B8B"
-          autoCapitalize="none"
-          inputStyle={inputStyle}
-          labelStyle={labelStyle}
-        />
-      </View>
-      <View style={styles.verticallySpaced}>
-        <Input
-          label="Password"
-          leftIcon={{ type: 'font-awesome', name: 'lock', color: iconColor }}
-          onChangeText={(text) => setPassword(text)}
-          value={password}
-          secureTextEntry={true}
-          placeholder="Password"
-          placeholderTextColor="#7B7B8B"
-          autoCapitalize="none"
-          inputStyle={inputStyle}
-          labelStyle={labelStyle}
-        />
-      </View>
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button title="Sign in" disabled={loading} onPress={signInWithEmail} />
-      </View>
+    <View className="px-5 pt-6">
+      <Text className="text-white font-psemibold text-2xl mb-8 text-center">Log In</Text>
+
+      <Text className="text-gray-100 font-pregular text-sm mb-1">Auth Code</Text>
+      <TextInput
+        value={authCode}
+        onChangeText={setAuthCode}
+        placeholder="Enter auth code"
+        placeholderTextColor="#7B7B8B"
+        keyboardType="numeric"
+        autoCapitalize="none"
+        className={inputClass}
+        style={{ color: '#fff' }}
+      />
+
+      <Text className="text-gray-100 font-pregular text-sm mb-1 mt-4">Email</Text>
+      <TextInput
+        value={email}
+        onChangeText={setEmail}
+        placeholder="email@address.com"
+        placeholderTextColor="#7B7B8B"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        className={inputClass}
+        style={{ color: '#fff' }}
+      />
+
+      <Text className="text-gray-100 font-pregular text-sm mb-1 mt-4">Password</Text>
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        placeholderTextColor="#7B7B8B"
+        secureTextEntry
+        autoCapitalize="none"
+        className={inputClass}
+        style={{ color: '#fff' }}
+      />
+
+      <TouchableOpacity
+        onPress={signInWithEmail}
+        disabled={loading}
+        activeOpacity={0.8}
+        className="bg-secondary rounded-2xl h-16 items-center justify-center mt-8"
+      >
+        {loading ? (
+          <ActivityIndicator color="#161622" />
+        ) : (
+          <Text className="text-primary font-psemibold text-base">Sign In</Text>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 40,
-    padding: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  verticallySpaced: {
-    paddingTop: 4,
-    paddingBottom: 4,
-    alignSelf: 'stretch',
-  },
-  mt20: {
-    marginTop: 20,
-  },
-});

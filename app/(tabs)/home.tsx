@@ -21,6 +21,7 @@ type Banner = {
   id: string;
   title: string;
   description: string;
+  long_description: string;
   image_url: string;
   sort_order: number;
   text_align: 'left' | 'right';
@@ -45,12 +46,15 @@ const Home = () => {
   const [addModal, setAddModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newLongDesc, setNewLongDesc] = useState('');
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
   const [newAlign, setNewAlign] = useState<'left' | 'right'>('left');
   const [adding, setAdding] = useState(false);
 
   // Edit alignment
   const [editAlign, setEditAlign] = useState<'left' | 'right'>('left');
+  const [editLongDesc, setEditLongDesc] = useState('');
+  const [editSortOrder, setEditSortOrder] = useState('');
 
   // Bucket picker state
   const [bucketModal, setBucketModal] = useState(false);
@@ -99,7 +103,7 @@ const Home = () => {
     try {
       const { data, error } = await supabase
         .from('banners')
-        .select('id, title, description, image_url, sort_order, text_align')
+        .select('id, title, description, long_description, image_url, sort_order, text_align')
         .order('sort_order', { ascending: true });
 
       if (error) {
@@ -118,14 +122,17 @@ const Home = () => {
     setEditing(banner);
     setEditTitle(banner.title ?? '');
     setEditDesc(banner.description ?? '');
+    setEditLongDesc(banner.long_description ?? '');
     setEditImageUri(null);
     setEditAlign(banner.text_align ?? 'left');
+    setEditSortOrder(String(banner.sort_order ?? ''));
     setEditModal(true);
   };
 
   const openAdd = () => {
     setNewTitle('');
     setNewDesc('');
+    setNewLongDesc('');
     setNewImageUri(null);
     setNewAlign('left');
     setAddModal(true);
@@ -249,8 +256,10 @@ const Home = () => {
         .update({
           title: editTitle.trim(),
           description: editDesc.trim(),
+          long_description: editLongDesc.trim(),
           image_url,
           text_align: editAlign,
+          sort_order: editSortOrder.trim() !== '' ? Number(editSortOrder) : editing.sort_order,
         })
         .eq('id', editing.id);
 
@@ -259,6 +268,8 @@ const Home = () => {
       setEditModal(false);
       setEditing(null);
       setEditImageUri(null);
+      setEditLongDesc('');
+      setEditSortOrder('');
       await fetchBanners();
     } catch (err: any) {
       Alert.alert('Save failed', err?.message || 'Failed to save banner changes.');
@@ -292,6 +303,7 @@ const Home = () => {
       const { error } = await supabase.from('banners').insert({
         title: newTitle.trim(),
         description: newDesc.trim(),
+        long_description: newLongDesc.trim(),
         image_url,
         sort_order: nextOrder,
         text_align: newAlign,
@@ -302,6 +314,7 @@ const Home = () => {
       setAddModal(false);
       setNewTitle('');
       setNewDesc('');
+      setNewLongDesc('');
       setNewImageUri(null);
       await fetchBanners();
     } catch (err: any) {
@@ -492,8 +505,19 @@ const Home = () => {
             <TextInput
               value={newDesc}
               onChangeText={setNewDesc}
-              placeholder="Banner description (optional)"
+              placeholder="Short description (shown on banner)"
               placeholderTextColor="#7B7B8B"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            <TextInput
+              value={newLongDesc}
+              onChangeText={setNewLongDesc}
+              placeholder="Long description (shown when tapped in guest app)"
+              placeholderTextColor="#7B7B8B"
+              multiline
+              numberOfLines={4}
+              style={{ textAlignVertical: 'top' }}
               className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
@@ -599,8 +623,31 @@ const Home = () => {
             <TextInput
               value={editDesc}
               onChangeText={setEditDesc}
-              placeholder="Banner description"
+              placeholder="Short description (shown on banner)"
               placeholderTextColor="#7B7B8B"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            <TextInput
+              value={editLongDesc}
+              onChangeText={setEditLongDesc}
+              placeholder="Long description (shown when tapped in guest app)"
+              placeholderTextColor="#7B7B8B"
+              multiline
+              numberOfLines={4}
+              style={{ textAlignVertical: 'top' }}
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">
+              Sort order — lower number appears first (current: {editing?.sort_order})
+            </Text>
+            <TextInput
+              value={editSortOrder}
+              onChangeText={setEditSortOrder}
+              placeholder={`Current: ${editing?.sort_order ?? ''}`}
+              placeholderTextColor="#7B7B8B"
+              keyboardType="numeric"
               className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
             />
 

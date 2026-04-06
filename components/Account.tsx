@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { StyleSheet, View, Alert, ScrollView, SafeAreaView,Text } from 'react-native';
-import { Button } from '@rneui/themed';
+import { View, Alert, ScrollView, SafeAreaView, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
-import FormField from '../components/FormField'; 
+import FormField from '../components/FormField';
 
 export default function Account({ session }: { session: Session }) {
   const [loading, setLoading] = useState(true);
@@ -90,101 +89,88 @@ export default function Account({ session }: { session: Session }) {
   return (
   <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-    <View style={styles.container}>
-    <View className="flex-1 justify-center items-center px-4 pb-8">
-      <Text className="text-2xl text-white font-psemibold">
-            Profile
-      </Text>
-      </View>
+      <View className="px-4 pt-6 pb-10">
 
-      <FormField
-        title="Admin Code"
-        value={adminCode?.toString() || ''}
-        placeholder="Admin Code"
-        titleColor="text-gray-100"
-        editable={false}
-        textColor="#CDCDE0"
-      />
+        <Text className="text-white font-psemibold text-2xl mb-6">Profile</Text>
 
-      <FormField
-        title="Email"
-        value={session?.user?.email || ''}
-        placeholder="User email"
-        titleColor="text-gray-100"
-        editable={false}
-        textColor="#CDCDE0"
-        OtherStyles="mt-5"
-      />     
+        <FormField
+          title="Admin Code"
+          value={adminCode?.toString() || ''}
+          placeholder="Admin Code"
+          titleColor="text-gray-100"
+          editable={false}
+          textColor="#CDCDE0"
+        />
 
-      <FormField
-        title="First Name"
-        value={firstName}
-        handleChangeText={setFirstName}
-        placeholder="Enter your full name"
-        OtherStyles="mt-5"
-        titleColor="text-gray-100"
-      />
-       <FormField
-        title="Last Name"
-        value={lastName}
-        handleChangeText={setLastName}
-        placeholder="Enter your full name"
-        OtherStyles="mt-5"
-        titleColor="text-gray-100"
-      />
-      <FormField
-        title="Phone Number"
-        value={phoneNumber}
-        handleChangeText={setPhoneNumber}
-        placeholder="Enter your phone number"
-        OtherStyles="mt-5"
-        keyboardType="phone-pad"
-        titleColor="text-gray-100"
-      />
+        <FormField
+          title="Email"
+          value={session?.user?.email || ''}
+          placeholder="User email"
+          titleColor="text-gray-100"
+          editable={false}
+          textColor="#CDCDE0"
+          OtherStyles="mt-5"
+        />
 
-      
+        <FormField
+          title="First Name"
+          value={firstName}
+          handleChangeText={setFirstName}
+          placeholder="Enter your first name"
+          OtherStyles="mt-5"
+          titleColor="text-gray-100"
+        />
+        <FormField
+          title="Last Name"
+          value={lastName}
+          handleChangeText={setLastName}
+          placeholder="Enter your last name"
+          OtherStyles="mt-5"
+          titleColor="text-gray-100"
+        />
+        <FormField
+          title="Phone Number"
+          value={phoneNumber}
+          handleChangeText={setPhoneNumber}
+          placeholder="Enter your phone number"
+          OtherStyles="mt-5"
+          keyboardType="phone-pad"
+          titleColor="text-gray-100"
+        />
 
-      <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button
-          title={loading ? 'Loading ...' : 'Update'}
+        <TouchableOpacity
           onPress={() =>
             updateProfile({
-              admin_code: adminCode || 0, // Ensure it's a number
+              admin_code: adminCode || 0,
               first_name: firstName,
               last_name: lastName,
               phone_number: phoneNumber,
             })
           }
           disabled={loading}
-        />
-      </View>
+          activeOpacity={0.8}
+          className="bg-secondary rounded-2xl h-16 items-center justify-center mt-8 mb-3"
+        >
+          {loading ? (
+            <ActivityIndicator color="#161622" />
+          ) : (
+            <Text className="text-primary font-psemibold text-base">Update Profile</Text>
+          )}
+        </TouchableOpacity>
 
-      <View style={styles.verticallySpaced}>
-      <Button
-        title="Sign Out"
-        onPress={async () => {
-        await supabase.auth.signOut();
-        router.replace('/');
-        }}
-      />
+        <TouchableOpacity
+          onPress={async () => {
+            await supabase.auth.signOut();
+            router.replace('/');
+          }}
+          activeOpacity={0.8}
+          className="rounded-2xl h-16 items-center justify-center border border-red-500"
+        >
+          <Text className="text-red-500 font-psemibold text-base">Sign Out</Text>
+        </TouchableOpacity>
+
       </View>
-    </View>
     </ScrollView>
-   </SafeAreaView>
+  </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginTop: 40,
-    padding: 12,
-  },
-  verticallySpaced: {
-    paddingTop: 4,
-    paddingBottom: 4,
-    alignSelf: 'stretch',
-  },
-  mt20: {
-    marginTop: 20,
-  },
-});

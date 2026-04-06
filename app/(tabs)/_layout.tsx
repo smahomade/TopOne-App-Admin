@@ -8,16 +8,18 @@ type TabIconProps = {
   color: string;
   name: string;
   focused: boolean;
+  noTint?: boolean;
+  size?: number;
 };
 
-const TabIcon = ({ icon, color, name, focused }: TabIconProps) => {
+const TabIcon = ({ icon, color, name, focused, noTint, size = 24 }: TabIconProps) => {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', gap: 8 }}>
       <Image
         source={icon}
         resizeMode="contain"
-        tintColor={color}
-        style={{ width: 24, height: 24 }}
+        tintColor={noTint ? undefined : color}
+        style={{ width: size, height: size }}
       />
       <Text
         style={{ 
@@ -78,7 +80,7 @@ const TabsLayout = () => {
             title: 'Collections',
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon icon={icons.scissors} color={color} name="Collections" focused={focused} />
+              <TabIcon icon={icons.comb} color={color} name="Collections" focused={focused} noTint size={24} />
             ),
           }}
         />
@@ -89,7 +91,7 @@ const TabsLayout = () => {
             title: 'Messages',
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon icon={icons.menu} color={color} name="Messages" focused={focused} />
+              <TabIcon icon={icons.bookmark} color={color} name="Messages" focused={focused} />
             ),
           }}
         />

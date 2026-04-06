@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  StyleSheet,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +20,6 @@ import { icons, images } from '../../constants';
 
 const BUCKET = 'collection';
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 columns with padding
 const DETAIL_COL_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
 type CollectionEntry = {
@@ -56,6 +56,7 @@ const Collections = () => {
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [showNewYearInput, setShowNewYearInput] = useState(false);
+  const [lockedYear, setLockedYear] = useState<string | null>(null);
 
   // Bucket picker state
   const [bucketModal, setBucketModal] = useState(false);
@@ -172,7 +173,7 @@ const Collections = () => {
       if (error) throw error;
       setAddModal(false);
       setNewYear(''); setNewTitle(''); setNewSubtitle('');
-      setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false);
+      setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null);
       await fetchEntries();
     } catch (err: any) {
       Alert.alert('Upload failed', err?.message || 'Could not add image.');
@@ -201,87 +202,70 @@ const Collections = () => {
   };
 
   // ─── Year Card ───────────────────────────────────────────────
-  const renderYearCard = ({ item }: { item: YearGroup }) => {
-    const previews = item.entries.slice(0, 4);
-    return (
-      <TouchableOpacity
-        onPress={() => setDetailGroup(item)}
-        activeOpacity={0.85}
-        style={{ width: CARD_WIDTH, margin: 8 }}
-        className="rounded-2xl overflow-hidden bg-black-100"
-      >
-        {/* 2×2 collage preview */}
-        <View style={{ height: CARD_WIDTH * 0.9 }} className="flex-row flex-wrap">
-          {previews.map((e, i) => (
-            <Image
-              key={e.id}
-              source={{ uri: e.image_url }}
-              style={{ width: '50%', height: '50%' }}
-              resizeMode="cover"
-            />
-          ))}
-          {previews.length < 4 &&
-            Array.from({ length: 4 - previews.length }).map((_, i) => (
-              <View key={`empty-${i}`} style={{ width: '50%', height: '50%' }} className="bg-black-200" />
-            ))}
-        </View>
-        {/* Year overlay */}
-        <View
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.28)' }}
-        />
-        <View className="absolute inset-0 items-center justify-center">
-          <Text className="text-white font-psemibold" style={{ fontSize: 36 }}>{item.year}</Text>
-          <Text className="text-gray-100 font-pregular text-xs mt-0.5" numberOfLines={1}>{item.title}</Text>
-        </View>
-        {/* Image count badge */}
-        <View className="absolute top-2 right-2 bg-black-200 px-2 py-0.5 rounded-full">
-          <Text className="text-secondary font-pregular text-xs">{item.entries.length} photos</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderYearCard = ({ item }: { item: YearGroup }) => (
+    <TouchableOpacity
+      onPress={() => setDetailGroup(item)}
+      activeOpacity={0.85}
+      style={styles.yearBundleCard}
+    >
+      <Image
+        source={{ uri: item.entries[0]?.image_url }}
+        style={styles.yearBundleImage}
+        resizeMode="cover"
+      />
+      <View style={styles.yearBundleOverlay} />
+      <View style={styles.yearBundleContent}>
+        <Text style={styles.yearBundleTitle}>{item.year}</Text>
+        <Text style={styles.yearBundleMeta}>{item.entries.length} images</Text>
+        <Text style={styles.yearBundleHint}>Tap to open this bundle</Text>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView className="bg-primary flex-1">
-      {/* Header */}
-      <View className="px-4 pt-4 pb-2">
-        <View className="items-center mb-4">
-          <Image
-            source={images.logoTopOneWhite}
-            style={{ width: 160, height: 64 }}
-            resizeMode="contain"
-          />
-        </View>
-        <View className="flex-row justify-between items-center">
-          <Text className="text-white text-2xl font-psemibold">Collections</Text>
-          <TouchableOpacity
-            onPress={() => setAddModal(true)}
-            className="bg-secondary rounded-full w-10 h-10 items-center justify-center"
-          >
-            <Image source={icons.plus} className="w-5 h-5" tintColor="#161622" resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {loading ? (
-        <View className="flex-1 items-center justify-center">
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color="#8ED1FC" />
-        </View>
-      ) : yearGroups.length === 0 ? (
-        <View className="flex-1 items-center justify-center px-6">
-          <Image source={icons.scissors} className="w-16 h-16 mb-4 opacity-50" tintColor="#CDCDE0" resizeMode="contain" />
-          <Text className="text-gray-100 text-base font-pregular text-center">
-            No collections yet.{'\n'}Tap + to add your first image.
-          </Text>
         </View>
       ) : (
         <FlatList
           data={yearGroups}
           keyExtractor={g => g.year}
           renderItem={renderYearCard}
-          numColumns={2}
-          contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 24 }}
+          numColumns={1}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 32 }}>
+              <Image source={icons.scissors} style={{ width: 64, height: 64, marginBottom: 16, opacity: 0.4 }} tintColor="#CDCDE0" resizeMode="contain" />
+              <Text style={{ color: '#CDCDE0', fontSize: 15, lineHeight: 22, textAlign: 'center' }}>
+                No collections yet.{'\n'}Tap + to add your first image.
+              </Text>
+            </View>
+          }
+          ListHeaderComponent={
+            <View style={{ paddingTop: 8, paddingBottom: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <View>
+                  <Text style={{ color: '#CDCDE0', fontSize: 13, fontFamily: 'Poppins-Regular' }}>Collection</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 24, fontFamily: 'Poppins-SemiBold', marginTop: 2 }}>Collections</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Image source={images.logoTopOneWhite} style={{ width: 120, height: 52 }} resizeMode="contain" />
+                  <TouchableOpacity
+                    onPress={() => setAddModal(true)}
+                    style={{ backgroundColor: '#FF9C01', borderRadius: 999, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Image source={icons.plus} style={{ width: 20, height: 20 }} tintColor="#161622" resizeMode="contain" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={{ color: '#CDCDE0', fontSize: 13, fontFamily: 'Poppins-Regular', marginBottom: 16, marginTop: 4 }}>
+                Choose a year bundle to view all collection images from that year.
+              </Text>
+            </View>
+          }
         />
       )}
 
@@ -302,7 +286,7 @@ const Collections = () => {
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => setAddModal(true)}
+              onPress={() => { setLockedYear(detailGroup!.year); setNewYear(detailGroup!.year); setShowNewYearInput(false); setAddModal(true); }}
               className="bg-secondary rounded-full w-9 h-9 items-center justify-center"
             >
               <Image source={icons.plus} className="w-4 h-4" tintColor="#161622" resizeMode="contain" />
@@ -388,46 +372,55 @@ const Collections = () => {
 
               {/* Year selector */}
               <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Year</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-                <View className="flex-row">
-                  {yearGroups.map((g) => (
-                    <TouchableOpacity
-                      key={g.year}
-                      onPress={() => { setNewYear(g.year); setShowNewYearInput(false); }}
-                      className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
-                      style={{ backgroundColor: newYear === g.year && !showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
-                    >
-                      <Text
-                        className="font-psemibold text-sm"
-                        style={{ color: newYear === g.year && !showNewYearInput ? '#161622' : '#CDCDE0' }}
-                      >
-                        {g.year}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  <TouchableOpacity
-                    onPress={() => { setShowNewYearInput(true); setNewYear(''); }}
-                    className="py-2 px-4 rounded-xl items-center justify-center"
-                    style={{ backgroundColor: showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
-                  >
-                    <Text
-                      className="font-psemibold text-sm"
-                      style={{ color: showNewYearInput ? '#161622' : '#CDCDE0' }}
-                    >
-                      + New
-                    </Text>
-                  </TouchableOpacity>
+              {lockedYear ? (
+                <View className="bg-black-200 rounded-xl px-4 py-3 mb-3 flex-row items-center">
+                  <Text className="text-white font-psemibold text-sm flex-1">{lockedYear}</Text>
+                  <Text className="text-gray-100 font-pregular text-xs">Auto-selected</Text>
                 </View>
-              </ScrollView>
-              {showNewYearInput && (
-                <TextInput
-                  value={newYear}
-                  onChangeText={setNewYear}
-                  placeholder="Enter year (e.g. 2025)"
-                  placeholderTextColor="#7B7B8B"
-                  keyboardType="numeric"
-                  className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-                />
+              ) : (
+                <>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+                    <View className="flex-row">
+                      {yearGroups.map((g) => (
+                        <TouchableOpacity
+                          key={g.year}
+                          onPress={() => { setNewYear(g.year); setShowNewYearInput(false); }}
+                          className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
+                          style={{ backgroundColor: newYear === g.year && !showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
+                        >
+                          <Text
+                            className="font-psemibold text-sm"
+                            style={{ color: newYear === g.year && !showNewYearInput ? '#161622' : '#CDCDE0' }}
+                          >
+                            {g.year}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      <TouchableOpacity
+                        onPress={() => { setShowNewYearInput(true); setNewYear(''); }}
+                        className="py-2 px-4 rounded-xl items-center justify-center"
+                        style={{ backgroundColor: showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
+                      >
+                        <Text
+                          className="font-psemibold text-sm"
+                          style={{ color: showNewYearInput ? '#161622' : '#CDCDE0' }}
+                        >
+                          + New
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                  {showNewYearInput && (
+                    <TextInput
+                      value={newYear}
+                      onChangeText={setNewYear}
+                      placeholder="Enter year (e.g. 2025)"
+                      placeholderTextColor="#7B7B8B"
+                      keyboardType="numeric"
+                      className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                    />
+                  )}
+                </>
               )}
 
               {/* Title */}
@@ -483,7 +476,7 @@ const Collections = () => {
                 onPress={() => {
                   setAddModal(false);
                   setNewYear(''); setNewTitle(''); setNewSubtitle('');
-                  setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false);
+                  setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null);
                 }}
                 className="items-center py-2"
               >
@@ -546,5 +539,53 @@ const Collections = () => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  yearBundleCard: {
+    backgroundColor: '#1E1E2D',
+    borderColor: '#232533',
+    borderRadius: 20,
+    borderWidth: 1,
+    height: 180,
+    marginBottom: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  yearBundleImage: {
+    height: '100%',
+    width: '100%',
+  },
+  yearBundleOverlay: {
+    backgroundColor: 'rgba(7, 11, 19, 0.55)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  yearBundleContent: {
+    bottom: 18,
+    left: 18,
+    position: 'absolute',
+    right: 18,
+  },
+  yearBundleTitle: {
+    color: '#ffffff',
+    fontFamily: 'Poppins-Bold',
+    fontSize: 28,
+  },
+  yearBundleMeta: {
+    color: '#8ED1FC',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  yearBundleHint: {
+    color: '#CDCDE0',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    marginTop: 8,
+  },
+});
 
 export default Collections;

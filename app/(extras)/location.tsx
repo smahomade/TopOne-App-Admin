@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   FlatList,
@@ -20,6 +20,12 @@ type LocationItem = {
   id: string;
   name: string;
   address_line_1: string;
+  address_line_2: string;
+  postcode: string;
+  country: string;
+  phone: string;
+  email: string;
+  opening_hours: string;
   image_url: string;
   sort_order: number;
 };
@@ -35,6 +41,12 @@ const Location = () => {
   const [editing, setEditing] = useState<LocationItem | null>(null);
   const [editName, setEditName] = useState('');
   const [editAddress, setEditAddress] = useState('');
+  const [editAddress2, setEditAddress2] = useState('');
+  const [editPostcode, setEditPostcode] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editOpenHours, setEditOpenHours] = useState('');
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +54,12 @@ const Location = () => {
   const [addModal, setAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [newAddress2, setNewAddress2] = useState('');
+  const [newPostcode, setNewPostcode] = useState('');
+  const [newCountry, setNewCountry] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newOpenHours, setNewOpenHours] = useState('');
   const [newImageUri, setNewImageUri] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -60,7 +78,7 @@ const Location = () => {
     try {
       const { data, error } = await supabase
         .from('locations')
-        .select('id, name, address_line_1, image_url, sort_order')
+        .select('id, name, address_line_1, address_line_2, postcode, country, phone, email, opening_hours, image_url, sort_order')
         .order('sort_order', { ascending: true });
       if (error) throw error;
       setLocations(data ?? []);
@@ -132,6 +150,12 @@ const Location = () => {
     setEditing(item);
     setEditName(item.name ?? '');
     setEditAddress(item.address_line_1 ?? '');
+    setEditAddress2(item.address_line_2 ?? '');
+    setEditPostcode(item.postcode ?? '');
+    setEditCountry(item.country ?? '');
+    setEditPhone(item.phone ?? '');
+    setEditEmail(item.email ?? '');
+    setEditOpenHours(item.opening_hours ?? '');
     setEditImageUri(null);
     setEditModal(true);
   };
@@ -149,12 +173,28 @@ const Location = () => {
       }
       const { error } = await supabase
         .from('locations')
-        .update({ name: editName.trim(), address_line_1: editAddress.trim(), image_url })
+        .update({
+          name: editName.trim(),
+          address_line_1: editAddress.trim(),
+          address_line_2: editAddress2.trim(),
+          postcode: editPostcode.trim(),
+          country: editCountry.trim(),
+          phone: editPhone.trim(),
+          email: editEmail.trim(),
+          opening_hours: editOpenHours.trim(),
+          image_url,
+        })
         .eq('id', editing.id);
       if (error) throw error;
       setEditModal(false);
       setEditing(null);
       setEditImageUri(null);
+      setEditAddress2('');
+      setEditPostcode('');
+      setEditCountry('');
+      setEditPhone('');
+      setEditEmail('');
+      setEditOpenHours('');
       await fetchLocations();
     } catch (err: any) {
       Alert.alert('Save failed', err?.message || 'Failed to save changes.');
@@ -175,6 +215,12 @@ const Location = () => {
           setEditModal(false);
           setEditing(null);
           setEditImageUri(null);
+          setEditAddress2('');
+          setEditPostcode('');
+          setEditCountry('');
+          setEditPhone('');
+          setEditEmail('');
+          setEditOpenHours('');
           await fetchLocations();
         },
       },
@@ -194,6 +240,12 @@ const Location = () => {
       const { error } = await supabase.from('locations').insert({
         name: newName.trim(),
         address_line_1: newAddress.trim(),
+        address_line_2: newAddress2.trim(),
+        postcode: newPostcode.trim(),
+        country: newCountry.trim(),
+        phone: newPhone.trim(),
+        email: newEmail.trim(),
+        opening_hours: newOpenHours.trim(),
         image_url,
         sort_order: nextOrder,
       });
@@ -201,6 +253,12 @@ const Location = () => {
       setAddModal(false);
       setNewName('');
       setNewAddress('');
+      setNewAddress2('');
+      setNewPostcode('');
+      setNewCountry('');
+      setNewPhone('');
+      setNewEmail('');
+      setNewOpenHours('');
       setNewImageUri(null);
       await fetchLocations();
     } catch (err: any) {
@@ -236,6 +294,9 @@ const Location = () => {
         <Text className="text-white font-psemibold text-2xl">{item.name}</Text>
         {!!item.address_line_1 && (
           <Text className="text-gray-100 font-pregular text-sm mt-1">{item.address_line_1}</Text>
+        )}
+        {!!item.postcode && (
+          <Text className="text-gray-100 font-pregular text-sm">{item.postcode}</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -284,152 +345,254 @@ const Location = () => {
         )}
       />
 
-      {/* ─── Add Modal ─── */}
+      {/* â”€â”€â”€ Add Modal â”€â”€â”€ */}
       <Modal visible={addModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Add Location</Text>
+          <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
+            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-3" />
+            <Text className="text-white font-psemibold text-xl px-5 mb-4">Add Location</Text>
+            <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
 
-            <TouchableOpacity
-              onPress={() => pickImage(setNewImageUri)}
-              className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
-              style={{ height: 140 }}
-            >
-              {newImageUri ? (
-                <>
-                  <Image source={{ uri: newImageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                  <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-                    <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                    <Text className="text-white font-pregular text-sm">Tap to change</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#8ED1FC" resizeMode="contain" />
-                  <Text className="text-secondary font-pregular text-sm">Tap to upload image</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => pickImage(setNewImageUri)}
+                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+                style={{ height: 140 }}
+              >
+                {newImageUri ? (
+                  <>
+                    <Image source={{ uri: newImageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                      <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
+                      <Text className="text-white font-pregular text-sm">Tap to change</Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#8ED1FC" resizeMode="contain" />
+                    <Text className="text-secondary font-pregular text-sm">Tap to upload image</Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => openBucketPicker((url) => setNewImageUri(url))}
-              className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
-            >
-              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-              <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => openBucketPicker((url) => setNewImageUri(url))}
+                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+              >
+                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
+                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+              </TouchableOpacity>
 
-            <TextInput
-              value={newName}
-              onChangeText={setNewName}
-              placeholder="Location name"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-            />
-            <TextInput
-              value={newAddress}
-              onChangeText={setNewAddress}
-              placeholder="Address (optional)"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-            />
+              <TextInput
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Location name"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newAddress}
+                onChangeText={setNewAddress}
+                placeholder="Address line 1"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newAddress2}
+                onChangeText={setNewAddress2}
+                placeholder="Address line 2 (optional)"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newPostcode}
+                onChangeText={setNewPostcode}
+                placeholder="Postcode"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newCountry}
+                onChangeText={setNewCountry}
+                placeholder="Country"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newPhone}
+                onChangeText={setNewPhone}
+                placeholder="Phone"
+                placeholderTextColor="#7B7B8B"
+                keyboardType="phone-pad"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newEmail}
+                onChangeText={setNewEmail}
+                placeholder="Email"
+                placeholderTextColor="#7B7B8B"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={newOpenHours}
+                onChangeText={setNewOpenHours}
+                placeholder="Opening hours (e.g. Monâ€“Fri 9amâ€“6pm)"
+                placeholderTextColor="#7B7B8B"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+                style={{ minHeight: 72 }}
+              />
 
-            <TouchableOpacity
-              onPress={addLocation}
-              disabled={adding}
-              className="bg-secondary rounded-xl py-4 items-center mb-3"
-            >
-              {adding ? (
-                <ActivityIndicator color="#161622" />
-              ) : (
-                <Text className="text-primary font-psemibold text-base">Add Location</Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={addLocation}
+                disabled={adding}
+                className="bg-secondary rounded-xl py-4 items-center mb-3"
+              >
+                {adding ? (
+                  <ActivityIndicator color="#161622" />
+                ) : (
+                  <Text className="text-primary font-psemibold text-base">Add Location</Text>
+                )}
+              </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setAddModal(false)} className="items-center py-2">
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => setAddModal(false)} className="items-center py-2">
+                <Text className="text-gray-100 font-pregular">Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* ─── Edit Modal ─── */}
+      {/* â”€â”€â”€ Edit Modal â”€â”€â”€ */}
       <Modal visible={editModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Edit Location</Text>
+          <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
+            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-3" />
+            <Text className="text-white font-psemibold text-xl px-5 mb-4">Edit Location</Text>
+            <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
 
-            <TouchableOpacity
-              onPress={() => pickImage(setEditImageUri)}
-              className="rounded-xl overflow-hidden mb-2"
-              style={{ height: 140 }}
-            >
-              <Image
-                source={
-                  editImageUri
-                    ? { uri: editImageUri }
-                    : editing?.image_url
-                    ? { uri: editing.image_url }
-                    : images.logoTopOneWhite
-                }
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="cover"
+              <TouchableOpacity
+                onPress={() => pickImage(setEditImageUri)}
+                className="rounded-xl overflow-hidden mb-2"
+                style={{ height: 140 }}
+              >
+                <Image
+                  source={
+                    editImageUri
+                      ? { uri: editImageUri }
+                      : editing?.image_url
+                      ? { uri: editing.image_url }
+                      : images.logoTopOneWhite
+                  }
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+                <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+                  <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
+                  <Text className="text-white font-pregular text-sm">Tap to change image</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => openBucketPicker((url) => setEditImageUri(url))}
+                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+              >
+                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
+                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+              </TouchableOpacity>
+
+              <TextInput
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Location name"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
               />
-              <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-                <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                <Text className="text-white font-pregular text-sm">Tap to change image</Text>
-              </View>
-            </TouchableOpacity>
+              <TextInput
+                value={editAddress}
+                onChangeText={setEditAddress}
+                placeholder="Address line 1"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editAddress2}
+                onChangeText={setEditAddress2}
+                placeholder="Address line 2 (optional)"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editPostcode}
+                onChangeText={setEditPostcode}
+                placeholder="Postcode"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editCountry}
+                onChangeText={setEditCountry}
+                placeholder="Country"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="Phone"
+                placeholderTextColor="#7B7B8B"
+                keyboardType="phone-pad"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Email"
+                placeholderTextColor="#7B7B8B"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
+              <TextInput
+                value={editOpenHours}
+                onChangeText={setEditOpenHours}
+                placeholder="Opening hours (e.g. Monâ€“Fri 9amâ€“6pm)"
+                placeholderTextColor="#7B7B8B"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+                style={{ minHeight: 72 }}
+              />
 
-            <TouchableOpacity
-              onPress={() => openBucketPicker((url) => setEditImageUri(url))}
-              className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
-            >
-              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-              <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={saveChanges}
+                disabled={saving}
+                className="bg-secondary rounded-xl py-4 items-center mb-3"
+              >
+                {saving ? (
+                  <ActivityIndicator color="#161622" />
+                ) : (
+                  <Text className="text-primary font-psemibold text-base">Save Changes</Text>
+                )}
+              </TouchableOpacity>
 
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              placeholder="Location name"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-            />
-            <TextInput
-              value={editAddress}
-              onChangeText={setEditAddress}
-              placeholder="Address"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-            />
+              <TouchableOpacity onPress={deleteLocation} className="items-center py-2 mb-1">
+                <Text className="text-red-500 font-pregular">Delete Location</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={saveChanges}
-              disabled={saving}
-              className="bg-secondary rounded-xl py-4 items-center mb-3"
-            >
-              {saving ? (
-                <ActivityIndicator color="#161622" />
-              ) : (
-                <Text className="text-primary font-psemibold text-base">Save Changes</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={deleteLocation} className="items-center py-2 mb-1">
-              <Text className="text-red-500 font-pregular">Delete Location</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
+                <Text className="text-gray-100 font-pregular">Cancel</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* ─── Bucket Picker Modal ─── */}
+      {/* â”€â”€â”€ Bucket Picker Modal â”€â”€â”€ */}
       <Modal visible={bucketModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
