@@ -19,14 +19,14 @@ import { supabase } from '../../lib/supabase';
 import { images, icons } from '../../constants';
 import { useLocation } from '../../context/LocationContext';
 
-// â”€â”€â”€ UUID helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 const generateUUID = (): string =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 type Message = {
   id: string;
@@ -59,7 +59,7 @@ type UserConversation = {
   closed_at: string | null;
 };
 
-// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 const Book = () => {
   const { locations } = useLocation();
@@ -87,7 +87,7 @@ const Book = () => {
   const [convMessages, setConvMessages] = useState<Message[]>([]);
   const adminListRef = useRef<FlatList>(null);
 
-  // â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   useEffect(() => { initUser(); }, []);
 
@@ -123,7 +123,7 @@ const Book = () => {
     }
   };
 
-  // â”€â”€â”€ Customer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   const fetchUserConversations = async (uid: string) => {
     const { data, error } = await supabase
@@ -145,7 +145,7 @@ const Book = () => {
           closed_at: null,
         };
       } else {
-        // Descending order means later items are older â†’ track earliest
+        // Descending order means later items are older track earliest
         map[m.conversation_id].started_at = m.created_at;
       }
     }
@@ -203,7 +203,7 @@ const Book = () => {
     setSending(false);
   };
 
-  // â”€â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   const fetchConversations = async () => {
     setLoadingConvs(true);
@@ -348,7 +348,7 @@ const Book = () => {
     const mins = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
     return `deletes in ${hours}h ${mins}m`;
   };
-  // â”€â”€â”€ Realtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   useEffect(() => {
     if (!userId) return;
@@ -377,7 +377,6 @@ const Book = () => {
     return () => { supabase.removeChannel(channel); };
   }, [userId, isAdmin, selectedConv, activeConvId]);
 
-  // â”€â”€â”€ Shared: bubble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const BOOKING_PREFIX = 'BOOKING_REQUEST';
 
@@ -459,7 +458,7 @@ const Book = () => {
     );
   };
 
-  // â”€â”€â”€ Shared: input bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   const renderInputBar = (onSend: () => void) => (
     <View
@@ -508,7 +507,7 @@ const Book = () => {
     </View>
   );
 
-  // â”€â”€â”€ Views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
 
   if (loading) {
     return (
@@ -528,7 +527,7 @@ const Book = () => {
     );
   }
 
-  // â”€â”€ Admin: conversation thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   if (isAdmin && selectedConv) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
@@ -584,7 +583,7 @@ const Book = () => {
     );
   }
 
-  // â”€â”€ Admin: conversation list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   if (isAdmin) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
@@ -684,7 +683,7 @@ const Book = () => {
     );
   }
 
-  // â”€â”€ Customer: active thread â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   if (activeConvId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
@@ -731,7 +730,7 @@ const Book = () => {
     );
   }
 
-  // â”€â”€ Customer: conversation list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>

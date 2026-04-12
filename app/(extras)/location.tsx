@@ -464,7 +464,7 @@ const Location = () => {
         )}
       />
 
-      {/* â”€â”€â”€ Add Modal â”€â”€â”€ */}
+      
       <Modal visible={addModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
@@ -576,7 +576,7 @@ const Location = () => {
         </View>
       </Modal>
 
-      {/* â”€â”€â”€ Edit Modal â”€â”€â”€ */}
+     
       <Modal visible={editModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
@@ -693,7 +693,7 @@ const Location = () => {
         </View>
       </Modal>
 
-      {/* â”€â”€â”€ Bucket Picker Modal â”€â”€â”€ */}
+     
       <Modal visible={bucketModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
