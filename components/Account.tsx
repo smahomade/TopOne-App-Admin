@@ -100,6 +100,7 @@ export default function Account({ session }: { session: Session }) {
           titleColor="text-gray-100"
           editable={false}
           textColor="#CDCDE0"
+          secret
         />
 
         <FormField

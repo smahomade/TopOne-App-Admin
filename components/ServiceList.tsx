@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 
-const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDeleteCategory }) => {
+const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDeleteService }) => {
   const items = servicesData[selectedCategory] ?? [];
 
   if (items.length === 0) {
@@ -24,9 +24,11 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
             <Text className="text-white font-psemibold text-base" numberOfLines={1}>
               {group.service}
             </Text>
-            <Text className="text-gray-100 font-pregular text-xs mt-1">
-              {group.service_category}
-            </Text>
+            {group.duration ? (
+              <Text className="text-gray-100 font-pregular text-xs mt-0.5">
+                {group.duration} mins
+              </Text>
+            ) : null}
             <Text className="text-secondary font-psemibold text-xs mt-1">
               {group.roles.length} {group.roles.length === 1 ? 'option' : 'options'}
             </Text>
@@ -42,7 +44,7 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => handleDeleteCategory(group.service_category)}
+              onPress={() => handleDeleteService(group)}
               className="bg-black-200 rounded-xl px-3 py-2"
             >
               <Text className="text-red-400 font-psemibold text-xs">Delete</Text>

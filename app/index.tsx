@@ -89,29 +89,10 @@ export default function Index() {
             title ="LOG IN HERE"
             handlePress={handleBooking}
             containerStyles="w-full mt-7"
+            textStyles=""
+            isLoading={loading}
           />
       </View>
-
-
-
-          {/* Admin Text - Positioned at the bottom */}
-      <View style={{
-            position: 'absolute', 
-            bottom: 30, 
-            left: 0, 
-            right: 0, 
-            alignItems: 'center'  // Center the admin text horizontally
-          }}>
-
-            <View className="flex-row gap-2">
-              <Text className="text-lg text-gray-100 font-pregular">
-                Access as a Guest?
-              </Text>
-              <Link href="/home" className="text-lg font-psemibold text-secondary underline">
-                Click Here
-              </Link>
-            </View>
-          </View>
       </ScrollView>
       
       {/* Adds light to the status bar (top bar with battery, wifi and time) <StatusBar backgroundColor="#161622" style="light"/> */}

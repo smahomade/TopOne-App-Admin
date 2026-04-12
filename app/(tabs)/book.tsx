@@ -1,8 +1,11 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
   FlatList,
+  ScrollView,
+  RefreshControl,
   TextInput,
   TouchableOpacity,
   Image,
@@ -14,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { images, icons } from '../../constants';
+import { useLocation } from '../../context/LocationContext';
 
 // â”€â”€â”€ UUID helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const generateUUID = (): string =>
@@ -43,6 +47,8 @@ type Conversation = {
   last_message_at: string;
   started_at: string;
   unread_count: number;
+  closed_at: string | null;
+  location_id: string | null;
 };
 
 type UserConversation = {
@@ -50,11 +56,14 @@ type UserConversation = {
   last_message: string;
   last_message_at: string;
   started_at: string;
+  closed_at: string | null;
 };
 
 // â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const Book = () => {
+  const { locations } = useLocation();
+
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -65,12 +74,14 @@ const Book = () => {
   const [userConversations, setUserConversations] = useState<UserConversation[]>([]);
   // Customer: active thread
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [activeConvClosedAt, setActiveConvClosedAt] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const customerListRef = useRef<FlatList>(null);
 
   // Admin: conversation list
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConvs, setLoadingConvs] = useState(false);
+  const [filterLocationId, setFilterLocationId] = useState<string | null>(null);
   // Admin: open thread
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [convMessages, setConvMessages] = useState<Message[]>([]);
@@ -79,6 +90,13 @@ const Book = () => {
   // â”€â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => { initUser(); }, []);
+
+  // Refresh admin conversation list every time the tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (isAdmin) fetchConversations();
+    }, [isAdmin])
+  );
 
   const initUser = async () => {
     try {
@@ -124,12 +142,25 @@ const Book = () => {
           last_message: m.content,
           last_message_at: m.created_at,
           started_at: m.created_at,
+          closed_at: null,
         };
       } else {
         // Descending order means later items are older â†’ track earliest
         map[m.conversation_id].started_at = m.created_at;
       }
     }
+    // Join closed_at from conversation_metadata
+    const convIds = Object.keys(map);
+    if (convIds.length > 0) {
+      const { data: metadata } = await supabase
+        .from('conversation_metadata')
+        .select('conversation_id, closed_at')
+        .in('conversation_id', convIds);
+      for (const m of metadata ?? []) {
+        if (map[m.conversation_id]) map[m.conversation_id].closed_at = m.closed_at ?? null;
+      }
+    }
+
     setUserConversations(
       Object.values(map).sort(
         (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
@@ -140,6 +171,9 @@ const Book = () => {
   const openUserConversation = async (convId: string) => {
     setActiveConvId(convId);
     setMessages([]);
+    // Set closed status from already-fetched list
+    const found = userConversations.find(c => c.conversation_id === convId);
+    setActiveConvClosedAt(found?.closed_at ?? null);
     const { data, error } = await supabase
       .from('messages').select('*')
       .eq('conversation_id', convId)
@@ -174,9 +208,22 @@ const Book = () => {
   const fetchConversations = async () => {
     setLoadingConvs(true);
     try {
-      const { data: msgs, error } = await supabase
+// Auto-delete conversations closed more than 2 weeks ago
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: expired } = await supabase
+      .from('conversation_metadata')
+      .select('conversation_id')
+      .not('closed_at', 'is', null)
+      .lt('closed_at', twoWeeksAgo);
+    if (expired && expired.length > 0) {
+      const expiredIds = expired.map((e: any) => e.conversation_id);
+      await supabase.from('messages').delete().in('conversation_id', expiredIds);
+      await supabase.from('conversation_metadata').delete().in('conversation_id', expiredIds);
+    }
+
+    const { data: msgs, error } = await supabase
         .from('messages')
-        .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin')
+        .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin, location_id')
         .not('conversation_id', 'is', null)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -203,12 +250,23 @@ const Book = () => {
             last_message_at: m.created_at,
             started_at: m.created_at,
             unread_count: 0,
+            closed_at: null,
+            location_id: m.location_id ?? null,
           };
         } else {
           map[key].started_at = m.created_at;
         }
         if (!m.sender_is_admin && !m.is_read) map[key].unread_count++;
       }
+      const { data: metadata } = await supabase
+        .from('conversation_metadata')
+        .select('conversation_id, closed_at');
+      const metaMap: Record<string, string | null> = {};
+      for (const m of metadata ?? []) metaMap[m.conversation_id] = m.closed_at ?? null;
+      for (const key of Object.keys(map)) {
+        map[key].closed_at = metaMap[key] ?? null;
+      }
+
       setConversations(
         Object.values(map).sort(
           (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
@@ -248,17 +306,54 @@ const Book = () => {
       sender_is_admin: true,
       content,
       is_read: false,
+      location_id: selectedConv.location_id ?? null,
     });
     if (error) Alert.alert('Send failed', error.message);
     setSending(false);
   };
+  const closeConversation = async () => {
+    if (!selectedConv) return;
+    const now = new Date().toISOString();
+    await supabase.from('conversation_metadata').upsert(
+      { conversation_id: selectedConv.conversation_id, closed_at: now },
+      { onConflict: 'conversation_id' }
+    );
+    const updated = { ...selectedConv, closed_at: now };
+    setSelectedConv(updated);
+    setConversations(prev => prev.map(c =>
+      c.conversation_id === selectedConv.conversation_id ? { ...c, closed_at: now } : c
+    ));
+  };
 
+  const reopenConversation = async () => {
+    if (!selectedConv) return;
+    await supabase.from('conversation_metadata').upsert(
+      { conversation_id: selectedConv.conversation_id, closed_at: null },
+      { onConflict: 'conversation_id' }
+    );
+    const updated = { ...selectedConv, closed_at: null };
+    setSelectedConv(updated);
+    setConversations(prev => prev.map(c =>
+      c.conversation_id === selectedConv.conversation_id ? { ...c, closed_at: null } : c
+    ));
+  };
+
+  const getDeleteCountdown = (closedAt: string): string => {
+    const deleteAt = new Date(closedAt).getTime() + 14 * 24 * 60 * 60 * 1000;
+    const msLeft = deleteAt - Date.now();
+    if (msLeft <= 0) return 'deleting soon';
+    const days = Math.floor(msLeft / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((msLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    if (days > 0) return `deletes in ${days}d ${hours}h`;
+    const mins = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
+    return `deletes in ${hours}h ${mins}m`;
+  };
   // â”€â”€â”€ Realtime â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel('messages-realtime')
+      .channel(`messages-realtime-${userId}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
@@ -454,6 +549,15 @@ const Book = () => {
               Started {new Date(selectedConv.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
           </View>
+          {selectedConv.closed_at ? (
+            <TouchableOpacity onPress={reopenConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#0f2b1a', borderWidth: 1, borderColor: '#4ade80' }}>
+              <Text style={{ color: '#4ade80', fontSize: 13, fontWeight: '600' }}>Reopen</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={closeConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#2b0f0f', borderWidth: 1, borderColor: '#f87171' }}>
+              <Text style={{ color: '#f87171', fontSize: 13, fontWeight: '600' }}>Close</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
           <FlatList
@@ -469,7 +573,12 @@ const Book = () => {
               </View>
             }
           />
-          {renderInputBar(sendAdminReply)}
+          {selectedConv.closed_at ? (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#232533', alignItems: 'center', backgroundColor: '#161622' }}>
+              <Text style={{ color: '#f87171', fontSize: 13 }}>This conversation is closed</Text>
+              <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 3 }}>{getDeleteCountdown(selectedConv.closed_at)}</Text>
+            </View>
+          ) : renderInputBar(sendAdminReply)}
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -488,6 +597,27 @@ const Book = () => {
             {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
           </Text>
         </View>
+        {locations.length > 1 && (
+          <View style={{ height: 52, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => setFilterLocationId(null)}
+                style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === null ? '#8ED1FC' : '#232533', borderWidth: 1, borderColor: filterLocationId === null ? '#8ED1FC' : '#3a3a4a' }}
+              >
+                <Text style={{ color: filterLocationId === null ? '#161622' : '#CDCDE0', fontSize: 13, fontWeight: '600' }}>All</Text>
+              </TouchableOpacity>
+              {locations.map(loc => (
+                <TouchableOpacity
+                  key={loc.id}
+                  onPress={() => setFilterLocationId(loc.id)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === loc.id ? '#8ED1FC' : '#232533', borderWidth: 1, borderColor: filterLocationId === loc.id ? '#8ED1FC' : '#3a3a4a' }}
+                >
+                  <Text style={{ color: filterLocationId === loc.id ? '#161622' : '#CDCDE0', fontSize: 13, fontWeight: '600' }}>{loc.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
         {loadingConvs ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color="#8ED1FC" />
@@ -500,10 +630,18 @@ const Book = () => {
           </View>
         ) : (
           <FlatList
-            data={conversations}
+            data={filterLocationId ? conversations.filter(c => c.location_id === filterLocationId) : conversations}
             keyExtractor={(c) => c.conversation_id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={loadingConvs}
+                onRefresh={fetchConversations}
+                tintColor="#8ED1FC"
+                colors={['#8ED1FC']}
+              />
+            }
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => openConversation(item)}
@@ -526,6 +664,12 @@ const Book = () => {
                     {item.last_message}
                   </Text>
                 </View>
+                {item.closed_at && (
+                  <View style={{ backgroundColor: '#2b0f0f', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3, marginLeft: 6, alignItems: 'center' }}>
+                    <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '600' }}>Closed</Text>
+                    <Text style={{ color: '#7B7B8B', fontSize: 10, marginTop: 1 }}>{getDeleteCountdown(item.closed_at)}</Text>
+                  </View>
+                )}
                 {item.unread_count > 0 && (
                   <View style={{ backgroundColor: '#8ED1FC', borderRadius: 12, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginLeft: 8 }}>
                     <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700' }}>{item.unread_count}</Text>
@@ -546,7 +690,7 @@ const Book = () => {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
           <TouchableOpacity
-            onPress={() => { setActiveConvId(null); setMessages([]); if (userId) fetchUserConversations(userId); }}
+            onPress={() => { setActiveConvId(null); setActiveConvClosedAt(null); setMessages([]); if (userId) fetchUserConversations(userId); }}
             style={{ marginRight: 12 }}
           >
             <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
@@ -576,7 +720,12 @@ const Book = () => {
               </View>
             }
           />
-          {renderInputBar(sendMessage)}
+          {activeConvClosedAt ? (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#232533', alignItems: 'center', backgroundColor: '#161622' }}>
+              <Text style={{ color: '#f87171', fontSize: 13, fontWeight: '600' }}>This conversation has been closed</Text>
+              <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 3 }}>The salon will no longer receive new messages here</Text>
+            </View>
+          ) : renderInputBar(sendMessage)}
         </KeyboardAvoidingView>
       </SafeAreaView>
     );

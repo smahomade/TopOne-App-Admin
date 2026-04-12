@@ -9,6 +9,7 @@
   ActivityIndicator,
   Alert,
   ScrollView,
+  Switch,
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,18 @@ type LocationItem = {
   image_url: string;
   sort_order: number;
 };
+
+type DaySchedule = {
+  day_of_week: number;
+  open_time: string;
+  close_time: string;
+  is_closed: boolean;
+};
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const defaultSchedule = (): DaySchedule[] =>
+  DAY_NAMES.map((_, i) => ({ day_of_week: i, open_time: '09:00', close_time: '18:00', is_closed: false }));
 
 const STORAGE_BUCKET = 'images';
 
@@ -68,6 +81,10 @@ const Location = () => {
   const [bucketImages, setBucketImages] = useState<{ name: string; url: string }[]>([]);
   const [loadingBucket, setLoadingBucket] = useState(false);
   const [bucketOnPick, setBucketOnPick] = useState<((url: string) => void) | null>(null);
+
+  // Opening times
+  const [editSchedule, setEditSchedule] = useState<DaySchedule[]>(defaultSchedule());
+  const [newSchedule, setNewSchedule] = useState<DaySchedule[]>(defaultSchedule());
 
   useEffect(() => {
     fetchLocations();
@@ -146,7 +163,43 @@ const Location = () => {
     return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName).data.publicUrl;
   };
 
-  const openEdit = (item: LocationItem) => {
+  const fetchOpeningTimes = async (locationId: string): Promise<DaySchedule[]> => {
+    const { data, error } = await supabase
+      .from('opening_times')
+      .select('day_of_week, open_time, close_time, is_closed')
+      .eq('location_id', locationId)
+      .order('day_of_week', { ascending: true });
+    if (error || !data || data.length === 0) return defaultSchedule();
+    const base = defaultSchedule();
+    data.forEach((row) => {
+      const idx = row.day_of_week;
+      if (idx >= 0 && idx < 7) {
+        base[idx] = {
+          day_of_week: row.day_of_week,
+          open_time: row.open_time ?? '09:00',
+          close_time: row.close_time ?? '18:00',
+          is_closed: row.is_closed ?? false,
+        };
+      }
+    });
+    return base;
+  };
+
+  const saveOpeningTimes = async (locationId: string, schedule: DaySchedule[]) => {
+    const rows = schedule.map((d) => ({
+      location_id: locationId,
+      day_of_week: d.day_of_week,
+      open_time: d.open_time,
+      close_time: d.close_time,
+      is_closed: d.is_closed,
+    }));
+    const { error } = await supabase
+      .from('opening_times')
+      .upsert(rows, { onConflict: 'location_id,day_of_week' });
+    if (error) throw error;
+  };
+
+  const openEdit = async (item: LocationItem) => {
     setEditing(item);
     setEditName(item.name ?? '');
     setEditAddress(item.address_line_1 ?? '');
@@ -157,6 +210,8 @@ const Location = () => {
     setEditEmail(item.email ?? '');
     setEditOpenHours(item.opening_hours ?? '');
     setEditImageUri(null);
+    const schedule = await fetchOpeningTimes(item.id);
+    setEditSchedule(schedule);
     setEditModal(true);
   };
 
@@ -186,6 +241,7 @@ const Location = () => {
         })
         .eq('id', editing.id);
       if (error) throw error;
+      await saveOpeningTimes(editing.id, editSchedule);
       setEditModal(false);
       setEditing(null);
       setEditImageUri(null);
@@ -250,6 +306,15 @@ const Location = () => {
         sort_order: nextOrder,
       });
       if (error) throw error;
+      // fetch the new location id to save opening times
+      const { data: inserted } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('name', newName.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (inserted?.id) await saveOpeningTimes(inserted.id, newSchedule);
       setAddModal(false);
       setNewName('');
       setNewAddress('');
@@ -260,6 +325,7 @@ const Location = () => {
       setNewEmail('');
       setNewOpenHours('');
       setNewImageUri(null);
+      setNewSchedule(defaultSchedule());
       await fetchLocations();
     } catch (err: any) {
       Alert.alert('Upload failed', err?.message || 'Failed to add location.');
@@ -267,6 +333,59 @@ const Location = () => {
       setAdding(false);
     }
   };
+
+  const updateScheduleDay = (schedule: DaySchedule[], setSchedule: (s: DaySchedule[]) => void, dayIndex: number, field: keyof DaySchedule, value: any) => {
+    const updated = schedule.map((d) => d.day_of_week === dayIndex ? { ...d, [field]: value } : d);
+    setSchedule(updated);
+  };
+
+  const renderScheduleEditor = (schedule: DaySchedule[], setSchedule: (s: DaySchedule[]) => void) => (
+    <View className="mb-4">
+      <Text className="text-white font-psemibold text-base mb-3">Opening Hours</Text>
+      {schedule.map((day) => (
+        <View key={day.day_of_week} className="mb-3 bg-black-200 rounded-xl px-4 py-3">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-white font-psemibold text-sm">{DAY_NAMES[day.day_of_week]}</Text>
+            <View className="flex-row items-center">
+              <Text className="text-gray-100 font-pregular text-xs mr-2">
+                {day.is_closed ? 'Closed' : 'Open'}
+              </Text>
+              <Switch
+                value={!day.is_closed}
+                onValueChange={(val) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'is_closed', !val)}
+                trackColor={{ false: '#444', true: '#8ED1FC' }}
+                thumbColor={day.is_closed ? '#888' : '#161622'}
+              />
+            </View>
+          </View>
+          {!day.is_closed && (
+            <View className="flex-row" style={{ gap: 8 }}>
+              <View className="flex-1">
+                <Text className="text-gray-100 font-pregular text-xs mb-1">Open</Text>
+                <TextInput
+                  value={day.open_time}
+                  onChangeText={(v) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'open_time', v)}
+                  placeholder="09:00"
+                  placeholderTextColor="#7B7B8B"
+                  className="bg-primary text-white font-pregular rounded-lg px-3 py-2 text-sm"
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-100 font-pregular text-xs mb-1">Close</Text>
+                <TextInput
+                  value={day.close_time}
+                  onChangeText={(v) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'close_time', v)}
+                  placeholder="18:00"
+                  placeholderTextColor="#7B7B8B"
+                  className="bg-primary text-white font-pregular rounded-lg px-3 py-2 text-sm"
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
 
   const renderLocation = ({ item }: { item: LocationItem }) => (
     <TouchableOpacity
@@ -432,19 +551,10 @@ const Location = () => {
                 placeholderTextColor="#7B7B8B"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <TextInput
-                value={newOpenHours}
-                onChangeText={setNewOpenHours}
-                placeholder="Opening hours (e.g. Monâ€“Fri 9amâ€“6pm)"
-                placeholderTextColor="#7B7B8B"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
                 className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-                style={{ minHeight: 72 }}
               />
+
+              {renderScheduleEditor(newSchedule, setNewSchedule)}
 
               <TouchableOpacity
                 onPress={addLocation}
@@ -554,19 +664,10 @@ const Location = () => {
                 placeholderTextColor="#7B7B8B"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <TextInput
-                value={editOpenHours}
-                onChangeText={setEditOpenHours}
-                placeholder="Opening hours (e.g. Monâ€“Fri 9amâ€“6pm)"
-                placeholderTextColor="#7B7B8B"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
                 className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-                style={{ minHeight: 72 }}
               />
+
+              {renderScheduleEditor(editSchedule, setEditSchedule)}
 
               <TouchableOpacity
                 onPress={saveChanges}

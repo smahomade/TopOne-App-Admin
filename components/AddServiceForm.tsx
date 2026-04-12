@@ -16,12 +16,10 @@ const AddServiceForm = ({
   mainCategory,
   setMainCategory,
   existingCategories,
-  serviceCategory,
   service,
   price,
   role,
   duration,
-  setServiceCategory,
   setService,
   setPrice,
   setRole,
@@ -32,12 +30,10 @@ const AddServiceForm = ({
   mainCategory: string;
   setMainCategory: (v: string) => void;
   existingCategories: string[];
-  serviceCategory: string;
   service: string;
   price: string;
   role: string;
   duration: string;
-  setServiceCategory: (v: string) => void;
   setService: (v: string) => void;
   setPrice: (v: string) => void;
   setRole: (v: string) => void;
@@ -76,11 +72,10 @@ const AddServiceForm = ({
         className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
       />
 
-      {inputField(serviceCategory, setServiceCategory, 'Service category (e.g. Fade)')}
       {inputField(service, setService, 'Service name')}
+      {inputField(duration, setDuration, 'Duration (minutes)', true)}
       {inputField(price, setPrice, 'Price (£)', true)}
       {inputField(role, setRole, 'Role (e.g. Senior Stylist)')}
-      {inputField(duration, setDuration, 'Duration (minutes)', true)}
 
       <TouchableOpacity
         onPress={handleAddService}

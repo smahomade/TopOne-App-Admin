@@ -103,6 +103,7 @@ const SignIn = () => {
             OtherStyles="mb-5"
             keyboardType="numeric"
             placeholder="Enter your auth code"
+            secureTextEntry
           />
 
           <FormField

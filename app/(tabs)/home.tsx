@@ -10,12 +10,13 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { images, icons } from '../../constants';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import { useLocation } from '../../context/LocationContext';
 
 type Banner = {
   id: string;
@@ -30,6 +31,9 @@ type Banner = {
 const STORAGE_BUCKET = 'images';
 
 const Home = () => {
+  const { selectedLocationId, selectedLocationName, locations, setSelectedLocation, refreshLocations } = useLocation();
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+
   const [userName, setUserName] = useState('Guest');
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
@@ -63,8 +67,6 @@ const Home = () => {
   const [bucketOnPick, setBucketOnPick] = useState<((url: string) => void) | null>(null);
 
   useEffect(() => {
-    fetchBanners();
-
     // Fetch name immediately for any existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) fetchUserName(session.user.id);
@@ -82,6 +84,12 @@ const Home = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (selectedLocationId) {
+      fetchBanners();
+    }
+  }, [selectedLocationId]);
+
   const fetchUserName = async (uid: string) => {
     try {
       const { data, error } = await supabase
@@ -97,6 +105,15 @@ const Home = () => {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) fetchUserName(session.user.id);
+      });
+      refreshLocations();
+    }, [])
+  );
+
   const fetchBanners = async () => {
     setLoadingBanners(true);
 
@@ -104,6 +121,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from('banners')
         .select('id, title, description, long_description, image_url, sort_order, text_align')
+        .eq('location_id', selectedLocationId)
         .order('sort_order', { ascending: true });
 
       if (error) {
@@ -307,6 +325,7 @@ const Home = () => {
         image_url,
         sort_order: nextOrder,
         text_align: newAlign,
+        location_id: selectedLocationId,
       });
 
       if (error) throw error;
@@ -403,7 +422,7 @@ const Home = () => {
             </View>
 
             <TouchableOpacity
-              onPress={() => router.push('/(extras)/location')}
+              onPress={() => setLocationPickerVisible(true)}
               className="flex-row items-center bg-black-100 self-start px-4 py-2 rounded-full mb-5"
             >
               <Image
@@ -412,7 +431,7 @@ const Home = () => {
                 tintColor="#8ED1FC"
                 resizeMode="contain"
               />
-              <Text className="text-secondary font-pregular text-sm">Richmond Salon</Text>
+              <Text className="text-secondary font-psemibold text-sm">{selectedLocationName || 'Select Location'}</Text>
             </TouchableOpacity>
 
             <Text className="text-white font-psemibold text-xl mb-3">What's on</Text>
@@ -701,6 +720,64 @@ const Home = () => {
           </View>
         </View>
       </Modal>
+      {/* Location picker modal */}
+      <Modal
+        visible={locationPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLocationPickerVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+          <View style={{ backgroundColor: '#1E1E2D', borderRadius: 16, width: '100%', overflow: 'hidden' }}>
+            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+              <Text style={{ color: '#fff', fontFamily: 'Poppins-SemiBold', fontSize: 16 }}>Select Location</Text>
+            </View>
+            <FlatList
+              data={locations}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedLocation(item.id, item.name);
+                    setLocationPickerVisible(false);
+                  }}
+                  style={{
+                    padding: 18,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#232533',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text style={{ color: item.id === selectedLocationId ? '#FFA001' : '#CDCDE0', fontFamily: 'Poppins-SemiBold', fontSize: 14 }}>
+                    {item.name}
+                  </Text>
+                  {item.id === selectedLocationId && (
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFA001' }} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              onPress={() => {
+                setLocationPickerVisible(false);
+                router.push('/(extras)/location');
+              }}
+              style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#232533' }}
+            >
+              <Text style={{ color: '#8ED1FC', fontFamily: 'Poppins-SemiBold', fontSize: 14 }}>Manage Locations</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setLocationPickerVisible(false)}
+              style={{ padding: 16, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#7B7B8B', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Bucket image picker modal */}
       <Modal visible={bucketModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>

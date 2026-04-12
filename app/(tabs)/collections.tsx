@@ -29,12 +29,16 @@ type CollectionEntry = {
   subtitle: string;
   category: string;
   image_url: string;
+  sort_order: number;
+  show_year: boolean;
 };
 
 type YearGroup = {
   year: string;
   title: string;
   subtitle: string;
+  sort_order: number;
+  show_year: boolean;
   entries: CollectionEntry[];
 };
 
@@ -57,11 +61,28 @@ const Collections = () => {
   const [adding, setAdding] = useState(false);
   const [showNewYearInput, setShowNewYearInput] = useState(false);
   const [lockedYear, setLockedYear] = useState<string | null>(null);
+  const [lockedTitle, setLockedTitle] = useState<string | null>(null);
 
   // Bucket picker state
   const [bucketModal, setBucketModal] = useState(false);
   const [bucketImages, setBucketImages] = useState<{ name: string; url: string }[]>([]);
   const [loadingBucket, setLoadingBucket] = useState(false);
+  const [bucketOnPick, setBucketOnPick] = useState<((url: string) => void) | null>(null);
+
+  // Edit bundle
+  const [editBundleModal, setEditBundleModal] = useState(false);
+  const [editingBundle, setEditingBundle] = useState<YearGroup | null>(null);
+  const [editBundleYear, setEditBundleYear] = useState('');
+  const [editBundleTitle, setEditBundleTitle] = useState('');
+  const [editBundleShowYear, setEditBundleShowYear] = useState(true);
+  const [editBundleSubtitle, setEditBundleSubtitle] = useState('');
+  const [editBundleSortOrder, setEditBundleSortOrder] = useState('');
+  const [editBundleSaving, setEditBundleSaving] = useState(false);
+
+  // Edit individual image
+  const [editImageId, setEditImageId] = useState<string | null>(null);
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [editImageSaving, setEditImageSaving] = useState(false);
 
   useEffect(() => {
     fetchEntries();
@@ -72,7 +93,7 @@ const Collections = () => {
     try {
       const { data, error } = await supabase
         .from('collections')
-        .select('id, year, title, subtitle, category, image_url')
+        .select('id, year, title, subtitle, category, image_url, sort_order, show_year')
         .order('year', { ascending: false });
 
       if (error) throw error;
@@ -84,17 +105,24 @@ const Collections = () => {
     }
   };
 
-  // Group entries by year
+  // Group entries by title
   const yearGroups = useMemo<YearGroup[]>(() => {
     const map: Record<string, YearGroup> = {};
     for (const entry of entries) {
-      const yr = String(entry.year);
-      if (!map[yr]) {
-        map[yr] = { year: yr, title: entry.title, subtitle: entry.subtitle, entries: [] };
+      const key = entry.title?.trim() || String(entry.year);
+      if (!map[key]) {
+        map[key] = { year: String(entry.year ?? ''), title: entry.title, subtitle: entry.subtitle, sort_order: entry.sort_order ?? 0, show_year: entry.show_year !== false, entries: [] };
       }
-      map[yr].entries.push(entry);
+      map[key].entries.push(entry);
     }
-    return Object.values(map).sort((a, b) => Number(b.year) - Number(a.year));
+    return Object.values(map).sort((a, b) => {
+      const sa = a.sort_order ?? 0;
+      const sb = b.sort_order ?? 0;
+      if (sa !== sb) return sa - sb;
+      const ta = (a.title || String(a.year ?? '')).toLowerCase();
+      const tb = (b.title || String(b.year ?? '')).toLowerCase();
+      return ta.localeCompare(tb);
+    });
   }, [entries]);
 
   const pickImage = async (onPick: (uri: string) => void) => {
@@ -117,7 +145,8 @@ const Collections = () => {
     }
   };
 
-  const openBucketPicker = async () => {
+  const openBucketPicker = async (onPick: (url: string) => void) => {
+    setBucketOnPick(() => onPick);
     setBucketModal(true);
     setLoadingBucket(true);
     try {
@@ -154,7 +183,7 @@ const Collections = () => {
   };
 
   const handleAdd = async () => {
-    if (!newYear.trim()) return Alert.alert('Year required', 'Please enter a collection year.');
+    if (!(newYear ?? '').trim()) return Alert.alert('Year required', 'Please enter a collection year.');
     if (!newTitle.trim()) return Alert.alert('Title required', 'Please enter a title.');
     if (!newImageUri) return Alert.alert('Image required', 'Please select an image.');
 
@@ -162,19 +191,36 @@ const Collections = () => {
     try {
       const image_url = newImageUri.startsWith('http')
         ? newImageUri
-        : await uploadImage(newImageUri, newYear.trim());
+        : await uploadImage(newImageUri, (newYear ?? '').trim() || 'misc');
       const { error } = await supabase.from('collections').insert({
-        year: newYear.trim(),
+        year: (newYear ?? '').trim() || null,
         title: newTitle.trim(),
         subtitle: newSubtitle.trim(),
         category: newCategory,
         image_url,
       });
       if (error) throw error;
+
+      // Optimistically update local state so the detail view refreshes instantly
+      const newEntry: CollectionEntry = {
+        id: Math.random().toString(), // temp id, will be replaced by fetchEntries
+        year: (newYear ?? '').trim() || '',
+        title: newTitle.trim(),
+        subtitle: newSubtitle.trim(),
+        category: newCategory,
+        image_url,
+        sort_order: 0,
+        show_year: true,
+      };
+      setEntries(prev => [...prev, newEntry]);
+      if (detailGroup) {
+        setDetailGroup(prev => prev ? { ...prev, entries: [...prev.entries, newEntry] } : prev);
+      }
+
       setAddModal(false);
       setNewYear(''); setNewTitle(''); setNewSubtitle('');
-      setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null);
-      await fetchEntries();
+      setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null); setLockedTitle(null);
+      fetchEntries(); // background refresh to get real id and sort_order
     } catch (err: any) {
       Alert.alert('Upload failed', err?.message || 'Could not add image.');
     } finally {
@@ -201,6 +247,96 @@ const Collections = () => {
     ]);
   };
 
+  const openEditBundle = (group: YearGroup) => {
+    setEditingBundle(group);
+    setEditBundleYear(String(group.year ?? ''));
+    setEditBundleTitle(group.title ?? '');
+    setEditBundleShowYear(group.show_year !== false);
+    setEditBundleSubtitle(group.subtitle ?? '');
+    setEditBundleSortOrder(group.sort_order != null ? String(group.sort_order) : '');
+    setEditBundleModal(true);
+  };
+
+  const handleSaveBundle = async () => {
+    if (!editingBundle) return;
+    if (!editBundleTitle.trim()) return Alert.alert('Title required', 'Please enter a collection title.');
+    setEditBundleSaving(true);
+    try {
+      const updates: Record<string, any> = {
+        year: String(editBundleYear ?? '').trim(),
+        title: editBundleTitle.trim(),
+        subtitle: editBundleSubtitle.trim(),
+        sort_order: editBundleSortOrder.trim() !== '' ? Number(editBundleSortOrder) : 0,
+        show_year: editBundleShowYear,
+      };
+      const q = supabase.from('collections').update(updates);
+      const { error } = editingBundle.title?.trim()
+        ? await q.eq('title', editingBundle.title)
+        : await q.eq('year', editingBundle.year);
+      if (error) throw error;
+      setEditBundleModal(false);
+      if (detailGroup?.year === editingBundle.year) {
+        setDetailGroup(prev => prev ? { ...prev, year: updates.year, title: updates.title, subtitle: updates.subtitle } : prev);
+      }
+      await fetchEntries();
+    } catch (err: any) {
+      Alert.alert('Save failed', err?.message || 'Could not update bundle.');
+    } finally {
+      setEditBundleSaving(false);
+    }
+  };
+
+  const handleDeleteBundle = () => {
+    if (!editingBundle) return;
+    Alert.alert(
+      'Delete Bundle',
+      `Delete the "${editingBundle.title || editingBundle.year}" bundle and all ${editingBundle.entries.length} images?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All', style: 'destructive',
+          onPress: async () => {
+            const deleteQ = editingBundle.title?.trim()
+              ? supabase.from('collections').delete().eq('title', editingBundle.title)
+              : supabase.from('collections').delete().eq('year', editingBundle.year);
+            const { error } = await deleteQ;
+            if (error) return Alert.alert('Error', error.message);
+            setEditBundleModal(false);
+            setDetailGroup(null);
+            await fetchEntries();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveImage = async () => {
+    if (!editImageId || !editImageUri) return;
+    setEditImageSaving(true);
+    try {
+      let image_url = editImageUri;
+      if (!editImageUri.startsWith('http')) {
+        const entry = entries.find(e => e.id === editImageId);
+        image_url = await uploadImage(editImageUri, entry?.year ?? 'misc');
+      }
+      const { error } = await supabase.from('collections').update({ image_url }).eq('id', editImageId);
+      if (error) throw error;
+      setEntries(prev => prev.map(e => e.id === editImageId ? { ...e, image_url } : e));
+      if (detailGroup) {
+        setDetailGroup(prev => prev ? {
+          ...prev,
+          entries: prev.entries.map(e => e.id === editImageId ? { ...e, image_url } : e),
+        } : prev);
+      }
+      setEditImageId(null);
+      setEditImageUri(null);
+    } catch (err: any) {
+      Alert.alert('Save failed', err?.message || 'Could not update image.');
+    } finally {
+      setEditImageSaving(false);
+    }
+  };
+
   // ─── Year Card ───────────────────────────────────────────────
   const renderYearCard = ({ item }: { item: YearGroup }) => (
     <TouchableOpacity
@@ -215,10 +351,23 @@ const Collections = () => {
       />
       <View style={styles.yearBundleOverlay} />
       <View style={styles.yearBundleContent}>
-        <Text style={styles.yearBundleTitle}>{item.year}</Text>
+        <Text style={styles.yearBundleTitle}>{item.title || item.year}</Text>
+        {item.show_year !== false && !!item.year && (
+          <Text style={styles.yearBundleSubtitle}>{item.year}</Text>
+        )}
+        {!!item.subtitle && (
+          <Text style={styles.yearBundleSubtitle}>{item.subtitle}</Text>
+        )}
         <Text style={styles.yearBundleMeta}>{item.entries.length} images</Text>
         <Text style={styles.yearBundleHint}>Tap to open this bundle</Text>
       </View>
+      <TouchableOpacity
+        onPress={() => openEditBundle(item)}
+        style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(22,22,34,0.75)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      >
+        <Image source={icons.upload} style={{ width: 12, height: 12 }} tintColor="#8ED1FC" resizeMode="contain" />
+        <Text style={{ color: '#8ED1FC', fontSize: 12, fontFamily: 'Poppins-Regular' }}>Edit</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -231,7 +380,7 @@ const Collections = () => {
       ) : (
         <FlatList
           data={yearGroups}
-          keyExtractor={g => g.year}
+          keyExtractor={g => g.title || g.year}
           renderItem={renderYearCard}
           numColumns={1}
           showsVerticalScrollIndicator={false}
@@ -262,7 +411,7 @@ const Collections = () => {
                 </View>
               </View>
               <Text style={{ color: '#CDCDE0', fontSize: 13, fontFamily: 'Poppins-Regular', marginBottom: 16, marginTop: 4 }}>
-                Choose a year bundle to view all collection images from that year.
+                Choose a collection to view all images in that bundle.
               </Text>
             </View>
           }
@@ -278,15 +427,15 @@ const Collections = () => {
               <Image source={icons.leftArrow} className="w-6 h-6" tintColor="#CDCDE0" resizeMode="contain" />
             </TouchableOpacity>
             <View className="flex-1">
-              <Text className="text-white font-psemibold text-2xl">{detailGroup?.year}</Text>
-              {detailGroup?.title ? (
+              <Text className="text-white font-psemibold text-2xl">{detailGroup?.title || detailGroup?.year}</Text>
+              {(detailGroup?.year || detailGroup?.subtitle) ? (
                 <Text className="text-gray-100 font-pregular text-sm" numberOfLines={1}>
-                  {detailGroup.title}{detailGroup.subtitle ? ` · ${detailGroup.subtitle}` : ''}
+                  {[detailGroup?.year, detailGroup?.subtitle].filter(Boolean).join(' · ')}
                 </Text>
               ) : null}
             </View>
             <TouchableOpacity
-              onPress={() => { setLockedYear(detailGroup!.year); setNewYear(detailGroup!.year); setShowNewYearInput(false); setAddModal(true); }}
+        onPress={() => { setLockedTitle(detailGroup!.title || null); setNewTitle(detailGroup!.title ?? ''); setLockedYear(detailGroup!.year ?? null); setNewYear(detailGroup!.year ?? ''); setShowNewYearInput(false); setAddModal(true); }}
               className="bg-secondary rounded-full w-9 h-9 items-center justify-center"
             >
               <Image source={icons.plus} className="w-4 h-4" tintColor="#161622" resizeMode="contain" />
@@ -316,13 +465,21 @@ const Collections = () => {
                 >
                   <Text className="text-white font-pregular text-xs">{item.category}</Text>
                 </View>
-                {/* Delete */}
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  className="absolute top-2 right-2 bg-black-200 w-7 h-7 rounded-full items-center justify-center"
-                >
-                  <Image source={icons.logout} className="w-3 h-3" tintColor="#FF6B6B" resizeMode="contain" />
-                </TouchableOpacity>
+                {/* Edit & Delete */}
+                <View style={{ position: 'absolute', top: 8, right: 8, gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={() => { setEditImageId(item.id); setEditImageUri(null); }}
+                    className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
+                  >
+                    <Image source={icons.upload} className="w-3 h-3" tintColor="#8ED1FC" resizeMode="contain" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
+                  >
+                    <Image source={icons.logout} className="w-3 h-3" tintColor="#FF6B6B" resizeMode="contain" />
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           />
@@ -363,41 +520,45 @@ const Collections = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={openBucketPicker}
+                onPress={() => openBucketPicker((url) => setNewImageUri(url))}
                 className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
               >
                 <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
                 <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
               </TouchableOpacity>
 
-              {/* Year selector */}
-              <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Year</Text>
-              {lockedYear ? (
+              {/* Collection selector */}
+              <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Collection</Text>
+              {lockedTitle ? (
                 <View className="bg-black-200 rounded-xl px-4 py-3 mb-3 flex-row items-center">
-                  <Text className="text-white font-psemibold text-sm flex-1">{lockedYear}</Text>
+                  <Text className="text-white font-psemibold text-sm flex-1">{lockedTitle}</Text>
                   <Text className="text-gray-100 font-pregular text-xs">Auto-selected</Text>
                 </View>
               ) : (
                 <>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
                     <View className="flex-row">
-                      {yearGroups.map((g) => (
-                        <TouchableOpacity
-                          key={g.year}
-                          onPress={() => { setNewYear(g.year); setShowNewYearInput(false); }}
-                          className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
-                          style={{ backgroundColor: newYear === g.year && !showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
-                        >
-                          <Text
-                            className="font-psemibold text-sm"
-                            style={{ color: newYear === g.year && !showNewYearInput ? '#161622' : '#CDCDE0' }}
+                      {yearGroups.map((g) => {
+                        const label = g.title || g.year;
+                        const selected = newTitle === g.title && !!g.title && !showNewYearInput;
+                        return (
+                          <TouchableOpacity
+                            key={label}
+                            onPress={() => { setNewTitle(g.title); setNewYear(g.year ?? ''); setShowNewYearInput(false); }}
+                            className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
+                            style={{ backgroundColor: selected ? '#FF9C01' : '#1E1E2D' }}
                           >
-                            {g.year}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                            <Text
+                              className="font-psemibold text-sm"
+                              style={{ color: selected ? '#161622' : '#CDCDE0' }}
+                            >
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                       <TouchableOpacity
-                        onPress={() => { setShowNewYearInput(true); setNewYear(''); }}
+                        onPress={() => { setShowNewYearInput(true); setNewTitle(''); setNewYear(''); }}
                         className="py-2 px-4 rounded-xl items-center justify-center"
                         style={{ backgroundColor: showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
                       >
@@ -411,26 +572,26 @@ const Collections = () => {
                     </View>
                   </ScrollView>
                   {showNewYearInput && (
-                    <TextInput
-                      value={newYear}
-                      onChangeText={setNewYear}
-                      placeholder="Enter year (e.g. 2025)"
-                      placeholderTextColor="#7B7B8B"
-                      keyboardType="numeric"
-                      className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-                    />
+                    <>
+                      <TextInput
+                        value={newTitle}
+                        onChangeText={setNewTitle}
+                        placeholder="Collection title"
+                        placeholderTextColor="#7B7B8B"
+                        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                      />
+                      <TextInput
+                        value={newYear}
+                        onChangeText={setNewYear}
+                        placeholder="Year (e.g. 2025)"
+                        placeholderTextColor="#7B7B8B"
+                        keyboardType="numeric"
+                        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                      />
+                    </>
                   )}
                 </>
               )}
-
-              {/* Title */}
-              <TextInput
-                value={newTitle}
-                onChangeText={setNewTitle}
-                placeholder="Collection title"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
 
               {/* Subtitle */}
               <TextInput
@@ -476,7 +637,7 @@ const Collections = () => {
                 onPress={() => {
                   setAddModal(false);
                   setNewYear(''); setNewTitle(''); setNewSubtitle('');
-                  setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null);
+                  setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null); setLockedTitle(null);
                 }}
                 className="items-center py-2"
               >
@@ -509,7 +670,7 @@ const Collections = () => {
                     <TouchableOpacity
                       key={img.name}
                       onPress={() => {
-                        setNewImageUri(img.url);
+                        bucketOnPick?.(img.url);
                         setBucketModal(false);
                       }}
                       activeOpacity={0.8}
@@ -536,6 +697,151 @@ const Collections = () => {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Edit Bundle Modal ─────────────────────────────── */}
+      <Modal visible={editBundleModal} transparent animationType="slide">
+        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+            <Text className="text-white font-psemibold text-xl mb-4">Edit Bundle</Text>
+
+            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Title (main display text)</Text>
+            <TextInput
+              value={editBundleTitle}
+              onChangeText={setEditBundleTitle}
+              placeholder="Collection title"
+              placeholderTextColor="#7B7B8B"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text className="text-gray-100 font-pregular text-xs ml-1">Year</Text>
+              <TouchableOpacity
+                onPress={() => setEditBundleShowYear(v => !v)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2, paddingHorizontal: 8, borderRadius: 8,
+                  backgroundColor: editBundleShowYear ? '#0f2b1a' : '#1E1E2D',
+                  borderWidth: 1, borderColor: editBundleShowYear ? '#4ade80' : '#555568' }}
+              >
+                <View style={{ width: 12, height: 12, borderRadius: 3, borderWidth: 1.5,
+                  borderColor: editBundleShowYear ? '#4ade80' : '#7B7B8B',
+                  backgroundColor: editBundleShowYear ? '#4ade80' : 'transparent',
+                  alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {editBundleShowYear && <Text style={{ color: '#161622', fontSize: 9, fontWeight: '700', lineHeight: 12 }}>✓</Text>}
+                </View>
+                <Text style={{ color: editBundleShowYear ? '#4ade80' : '#7B7B8B', fontSize: 12, fontFamily: 'Poppins-Regular' }}>
+                  {editBundleShowYear ? 'Shown' : 'Hidden'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              value={editBundleYear}
+              onChangeText={setEditBundleYear}
+              placeholder="e.g. 2025"
+              placeholderTextColor="#7B7B8B"
+              keyboardType="numeric"
+              editable={editBundleShowYear}
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              style={{ opacity: editBundleShowYear ? 1 : 0.4 }}
+            />
+
+            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Subtitle</Text>
+            <TextInput
+              value={editBundleSubtitle}
+              onChangeText={setEditBundleSubtitle}
+              placeholder="Subtitle (optional)"
+              placeholderTextColor="#7B7B8B"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Sort order — lower appears first</Text>
+            <TextInput
+              value={editBundleSortOrder}
+              onChangeText={setEditBundleSortOrder}
+              placeholder="e.g. 1, 2, 3 ..."
+              placeholderTextColor="#7B7B8B"
+              keyboardType="numeric"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+            />
+
+            <TouchableOpacity
+              onPress={handleSaveBundle}
+              disabled={editBundleSaving}
+              className="bg-secondary rounded-xl py-4 items-center mb-3"
+            >
+              {editBundleSaving ? (
+                <ActivityIndicator color="#161622" />
+              ) : (
+                <Text className="text-primary font-psemibold text-base">Save Changes</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleDeleteBundle} className="items-center py-2 mb-1">
+              <Text className="text-red-500 font-pregular">Delete Bundle</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setEditBundleModal(false)} className="items-center py-2">
+              <Text className="text-gray-100 font-pregular">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Edit Image Modal ──────────────────────────────── */}
+      {editImageId !== null && (
+        <Modal visible={true} transparent animationType="slide">
+          <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+            <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+              <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+              <Text className="text-white font-psemibold text-xl mb-4">Replace Image</Text>
+
+              <TouchableOpacity
+                onPress={() => pickImage(setEditImageUri)}
+                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+                style={{ height: 160 }}
+              >
+                <Image
+                  source={{ uri: editImageUri ?? entries.find(e => e.id === editImageId)?.image_url }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+                <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+                  <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
+                  <Text className="text-white font-pregular text-sm">{editImageUri ? 'Tap to change' : 'Tap to replace'}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => openBucketPicker((url) => setEditImageUri(url))}
+                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+              >
+                <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
+                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSaveImage}
+                disabled={!editImageUri || editImageSaving}
+                className="rounded-xl py-4 items-center mb-3"
+                style={{ backgroundColor: editImageUri ? '#FF9C01' : '#1E1E2D' }}
+              >
+                {editImageSaving ? (
+                  <ActivityIndicator color="#161622" />
+                ) : (
+                  <Text className="font-psemibold text-base" style={{ color: editImageUri ? '#161622' : '#7B7B8B' }}>Save Image</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => { setEditImageId(null); setEditImageUri(null); }}
+                className="items-center py-2"
+              >
+                <Text className="text-gray-100 font-pregular">Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -573,6 +879,12 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontFamily: 'Poppins-Bold',
     fontSize: 28,
+  },
+  yearBundleSubtitle: {
+    color: '#CDCDE0',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    marginTop: 2,
   },
   yearBundleMeta: {
     color: '#8ED1FC',
