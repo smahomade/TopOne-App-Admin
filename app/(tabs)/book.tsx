@@ -13,6 +13,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -86,6 +87,12 @@ const Book = () => {
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
   const [convMessages, setConvMessages] = useState<Message[]>([]);
   const adminListRef = useRef<FlatList>(null);
+
+  // Confirm dialog
+  const [confirmDialog, setConfirmDialog] = useState<{ visible: boolean; title: string; body: string; onConfirm: () => void } | null>(null);
+  const showConfirm = (title: string, body: string, onConfirm: () => void) =>
+    setConfirmDialog({ visible: true, title, body, onConfirm });
+  const hideConfirm = () => setConfirmDialog(null);
 
   
 
@@ -311,18 +318,24 @@ const Book = () => {
     if (error) Alert.alert('Send failed', error.message);
     setSending(false);
   };
-  const closeConversation = async () => {
+  const closeConversation = () => {
     if (!selectedConv) return;
-    const now = new Date().toISOString();
-    await supabase.from('conversation_metadata').upsert(
-      { conversation_id: selectedConv.conversation_id, closed_at: now },
-      { onConflict: 'conversation_id' }
+    showConfirm(
+      'Close Conversation',
+      'Are you sure you want to close this conversation? The customer will no longer be able to send messages.',
+      async () => {
+        const now = new Date().toISOString();
+        await supabase.from('conversation_metadata').upsert(
+          { conversation_id: selectedConv.conversation_id, closed_at: now },
+          { onConflict: 'conversation_id' }
+        );
+        const updated = { ...selectedConv, closed_at: now };
+        setSelectedConv(updated);
+        setConversations(prev => prev.map(c =>
+          c.conversation_id === selectedConv.conversation_id ? { ...c, closed_at: now } : c
+        ));
+      }
     );
-    const updated = { ...selectedConv, closed_at: now };
-    setSelectedConv(updated);
-    setConversations(prev => prev.map(c =>
-      c.conversation_id === selectedConv.conversation_id ? { ...c, closed_at: now } : c
-    ));
   };
 
   const reopenConversation = async () => {
@@ -689,7 +702,13 @@ const Book = () => {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
           <TouchableOpacity
-            onPress={() => { setActiveConvId(null); setActiveConvClosedAt(null); setMessages([]); if (userId) fetchUserConversations(userId); }}
+            onPress={() =>
+              showConfirm(
+                'Leave Conversation',
+                'Are you sure you want to go back? Your conversation will remain saved.',
+                () => { setActiveConvId(null); setActiveConvClosedAt(null); setMessages([]); if (userId) fetchUserConversations(userId); }
+              )
+            }
             style={{ marginRight: 12 }}
           >
             <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
@@ -732,6 +751,7 @@ const Book = () => {
 
   
   return (
+    <>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
         <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
@@ -783,6 +803,46 @@ const Book = () => {
         />
       )}
     </SafeAreaView>
+
+    {/* Custom Confirm Dialog */}
+    {confirmDialog && (
+      <Modal transparent animationType="fade" visible={confirmDialog.visible} onRequestClose={hideConfirm}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+          <View style={{ backgroundColor: '#1E1E2D', borderRadius: 20, padding: 28, width: '100%', borderWidth: 1, borderColor: '#2E2E42' }}>
+            {/* Icon */}
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#2b1a1a', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 24 }}>⚠️</Text>
+            </View>
+            {/* Title */}
+            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
+              {confirmDialog.title}
+            </Text>
+            {/* Body */}
+            <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
+              {confirmDialog.body}
+            </Text>
+            {/* Buttons */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={hideConfirm}
+                activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2E2E42', alignItems: 'center' }}
+              >
+                <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => { confirmDialog.onConfirm(); hideConfirm(); }}
+                activeOpacity={0.8}
+                style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#7F1D1D', alignItems: 'center', borderWidth: 1, borderColor: '#f87171' }}
+              >
+                <Text style={{ color: '#FCA5A5', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )}
+    </>
   );
 };
 
