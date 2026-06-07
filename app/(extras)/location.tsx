@@ -13,6 +13,7 @@
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { images, icons } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
@@ -46,6 +47,7 @@ const defaultSchedule = (): DaySchedule[] =>
 const STORAGE_BUCKET = 'images';
 
 const Location = () => {
+  const router = useRouter();
   const [locations, setLocations] = useState<LocationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -431,6 +433,18 @@ const Location = () => {
         contentContainerStyle={{ paddingBottom: 32 }}
         ListHeaderComponent={() => (
           <View className="px-4 pt-6 pb-4">
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="mb-4 self-start"
+              activeOpacity={0.7}
+            >
+              <Image
+                source={icons.leftArrow}
+                style={{ width: 28, height: 28, tintColor: '#fff' }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+
             <View className="items-center mb-6">
               <Image
                 source={images.logoTopOneWhite}
