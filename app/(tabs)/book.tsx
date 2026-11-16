@@ -215,20 +215,9 @@ const Book = () => {
   const fetchConversations = async () => {
     setLoadingConvs(true);
     try {
-// Auto-delete conversations closed more than 2 weeks ago
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: expired } = await supabase
-      .from('conversation_metadata')
-      .select('conversation_id')
-      .not('closed_at', 'is', null)
-      .lt('closed_at', twoWeeksAgo);
-    if (expired && expired.length > 0) {
-      const expiredIds = expired.map((e: any) => e.conversation_id);
-      await supabase.from('messages').delete().in('conversation_id', expiredIds);
-      await supabase.from('conversation_metadata').delete().in('conversation_id', expiredIds);
-    }
-
-    const { data: msgs, error } = await supabase
+      // Old conversations are purged server-side by the nightly
+      // purge-old-conversations pg_cron job, not here.
+      const { data: msgs, error } = await supabase
         .from('messages')
         .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin, location_id')
         .not('conversation_id', 'is', null)
