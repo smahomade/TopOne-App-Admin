@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react'
 import { Alert, View, Text, TextInput, TouchableOpacity, ActivityIndicator, AppState } from 'react-native'
 import { supabase } from '../lib/supabase'
+import { getStaffCode } from '../lib/staff'
 
 AppState.addEventListener('change', (state) => {
   if (state === 'active') {
@@ -30,10 +31,18 @@ export default function Auth() {
     if (error) {
       Alert.alert(error.message);
     } else if (data.user) {
-      await supabase
-        .from('profiles')
-        .update({ admin_code: Number(authCode.trim()) })
-        .eq('id', data.user.id);
+      // Check the code against the profile; never write it. Staff codes are
+      // set in the Supabase dashboard and the database blocks app changes.
+      try {
+        const staffCode = await getStaffCode(data.user.id);
+        if (staffCode === null || staffCode !== Number(authCode.trim())) {
+          await supabase.auth.signOut();
+          Alert.alert('Access denied', 'Invalid admin code. Please try again.');
+        }
+      } catch {
+        await supabase.auth.signOut();
+        Alert.alert('Sign in failed', 'Could not check your admin code. Please try again.');
+      }
     }
     setLoading(false);
   }

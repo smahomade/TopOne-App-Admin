@@ -14,7 +14,6 @@ export default function Account({ session }: { session: Session }) {
 
   useEffect(() => {
     if (session) {
-      console.log('Session:', session); // Debugging
       getProfile();
     }
   }, [session]);
@@ -49,12 +48,10 @@ export default function Account({ session }: { session: Session }) {
   }
 
   async function updateProfile({
-    admin_code,
     first_name,
     last_name,
     phone_number,
   }: {
-    admin_code: number;
     first_name: string;
     last_name: string;
     phone_number: string;
@@ -63,9 +60,10 @@ export default function Account({ session }: { session: Session }) {
       setLoading(true);
       if (!session?.user) throw new Error('No user on the session!');
 
+      // admin_code is deliberately left out: only the salon owner can set it,
+      // from the Supabase dashboard.
       const updates = {
         id: session?.user.id,
-        admin_code,
         first_name,
         last_name,
         phone_number,
@@ -142,7 +140,6 @@ export default function Account({ session }: { session: Session }) {
         <TouchableOpacity
           onPress={() =>
             updateProfile({
-              admin_code: adminCode || 0,
               first_name: firstName,
               last_name: lastName,
               phone_number: phoneNumber,
