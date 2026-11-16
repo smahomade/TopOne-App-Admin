@@ -94,14 +94,22 @@ const Book = () => {
     setConfirmDialog({ visible: true, title, body, onConfirm });
   const hideConfirm = () => setConfirmDialog(null);
 
-  
+  // Read by the realtime handler, so the subscription doesn't have to be torn
+  // down and re-created whenever a different conversation is opened.
+  const selectedConvRef = useRef<Conversation | null>(null);
+  const activeConvIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedConvRef.current = selectedConv; }, [selectedConv]);
+  useEffect(() => { activeConvIdRef.current = activeConvId; }, [activeConvId]);
+
+  // State updates are async, so a quick double tap could send twice.
+  const sendingRef = useRef(false);
 
   useEffect(() => { initUser(); }, []);
 
   // Refresh admin conversation list every time the tab is focused
   useFocusEffect(
     useCallback(() => {
-      if (isAdmin) fetchConversations();
+      if (isAdmin) fetchConversations({ silent: true });
     }, [isAdmin])
   );
 
@@ -195,7 +203,8 @@ const Book = () => {
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || !userId || !activeConvId) return;
+    if (sendingRef.current || !inputText.trim() || !userId || !activeConvId) return;
+    sendingRef.current = true;
     const content = inputText.trim();
     setInputText('');
     setSending(true);
@@ -206,23 +215,36 @@ const Book = () => {
       content,
       is_read: false,
     });
-    if (error) Alert.alert('Send failed', error.message);
+    if (error) {
+      setInputText(content);
+      Alert.alert('Send failed', error.message);
+    }
+    sendingRef.current = false;
     setSending(false);
   };
 
-  
+  // Supabase returns at most 1,000 rows per request.
+  const PAGE_SIZE = 1000;
 
-  const fetchConversations = async () => {
-    setLoadingConvs(true);
+  // silent: refresh in the background without replacing the list with a spinner.
+  const fetchConversations = async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent) setLoadingConvs(true);
     try {
       // Old conversations are purged server-side by the nightly
       // purge-old-conversations pg_cron job, not here.
-      const { data: msgs, error } = await supabase
-        .from('messages')
-        .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin, location_id')
-        .not('conversation_id', 'is', null)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      const msgs: any[] = [];
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data: page, error } = await supabase
+          .from('messages')
+          .select('user_id, conversation_id, content, created_at, is_read, sender_is_admin, location_id')
+          .not('conversation_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        msgs.push(...(page ?? []));
+        if (!page || page.length < PAGE_SIZE) break;
+      }
 
       const userIds = [...new Set((msgs ?? []).map((m) => m.user_id))];
       const { data: profiles } = await supabase
@@ -269,9 +291,9 @@ const Book = () => {
         )
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Could not load conversations.');
+      if (!silent) Alert.alert('Error', err?.message || 'Could not load conversations.');
     } finally {
-      setLoadingConvs(false);
+      if (!silent) setLoadingConvs(false);
     }
   };
 
@@ -288,11 +310,12 @@ const Book = () => {
       .eq('conversation_id', conv.conversation_id)
       .eq('sender_is_admin', false).eq('is_read', false);
 
-    await fetchConversations();
+    await fetchConversations({ silent: true });
   };
 
   const sendAdminReply = async () => {
-    if (!inputText.trim() || !selectedConv) return;
+    if (sendingRef.current || !inputText.trim() || !selectedConv) return;
+    sendingRef.current = true;
     const content = inputText.trim();
     setInputText('');
     setSending(true);
@@ -304,7 +327,11 @@ const Book = () => {
       is_read: false,
       location_id: selectedConv.location_id ?? null,
     });
-    if (error) Alert.alert('Send failed', error.message);
+    if (error) {
+      setInputText(content);
+      Alert.alert('Send failed', error.message);
+    }
+    sendingRef.current = false;
     setSending(false);
   };
   const closeConversation = () => {
@@ -314,10 +341,14 @@ const Book = () => {
       'Are you sure you want to close this conversation? The customer will no longer be able to send messages.',
       async () => {
         const now = new Date().toISOString();
-        await supabase.from('conversation_metadata').upsert(
+        const { error } = await supabase.from('conversation_metadata').upsert(
           { conversation_id: selectedConv.conversation_id, closed_at: now },
           { onConflict: 'conversation_id' }
         );
+        if (error) {
+          Alert.alert('Could not close conversation', error.message);
+          return;
+        }
         const updated = { ...selectedConv, closed_at: now };
         setSelectedConv(updated);
         setConversations(prev => prev.map(c =>
@@ -329,10 +360,14 @@ const Book = () => {
 
   const reopenConversation = async () => {
     if (!selectedConv) return;
-    await supabase.from('conversation_metadata').upsert(
+    const { error } = await supabase.from('conversation_metadata').upsert(
       { conversation_id: selectedConv.conversation_id, closed_at: null },
       { onConflict: 'conversation_id' }
     );
+    if (error) {
+      Alert.alert('Could not reopen conversation', error.message);
+      return;
+    }
     const updated = { ...selectedConv, closed_at: null };
     setSelectedConv(updated);
     setConversations(prev => prev.map(c =>
@@ -352,32 +387,38 @@ const Book = () => {
   };
   
 
+  // One subscription per user and role. Re-subscribing under the same channel
+  // name while the old one is still being removed hands back the dying channel
+  // and live updates stop, so the open conversation is read from refs instead.
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`messages-realtime-${userId}`)
+      .channel(`messages-realtime-${userId}-${isAdmin ? 'staff' : 'customer'}`)
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const msg = payload.new as Message;
+          const addOnce = (prev: Message[]) =>
+            prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
           if (!isAdmin) {
-            if (msg.user_id === userId && msg.conversation_id === activeConvId) {
-              setMessages((prev) => [...prev, msg]);
+            if (msg.user_id === userId && msg.conversation_id === activeConvIdRef.current) {
+              setMessages(addOnce);
               setTimeout(() => customerListRef.current?.scrollToEnd({ animated: true }), 100);
             }
             if (msg.user_id === userId) fetchUserConversations(userId);
           } else {
-            if (selectedConv && msg.conversation_id === selectedConv.conversation_id) {
-              setConvMessages((prev) => [...prev, msg]);
+            const open = selectedConvRef.current;
+            if (open && msg.conversation_id === open.conversation_id) {
+              setConvMessages(addOnce);
               setTimeout(() => adminListRef.current?.scrollToEnd({ animated: true }), 100);
             }
-            fetchConversations();
+            fetchConversations({ silent: true });
           }
         }
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [userId, isAdmin, selectedConv, activeConvId]);
+  }, [userId, isAdmin]);
 
 
   const BOOKING_PREFIX = 'BOOKING_REQUEST';
@@ -509,7 +550,45 @@ const Book = () => {
     </View>
   );
 
-  
+  // Rendered by every screen below. It used to live only in the customer list
+  // screen, so staff's Close button opened a dialog that never appeared.
+  const confirmModal = confirmDialog && (
+    <Modal transparent animationType="fade" visible={confirmDialog.visible} onRequestClose={hideConfirm}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+        <View style={{ backgroundColor: '#1E1E2D', borderRadius: 20, padding: 28, width: '100%', borderWidth: 1, borderColor: '#2E2E42' }}>
+          {/* Icon */}
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#2b1a1a', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+            <Text style={{ fontSize: 24 }}>⚠️</Text>
+          </View>
+          {/* Title */}
+          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
+            {confirmDialog.title}
+          </Text>
+          {/* Body */}
+          <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
+            {confirmDialog.body}
+          </Text>
+          {/* Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={hideConfirm}
+              activeOpacity={0.8}
+              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2E2E42', alignItems: 'center' }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { confirmDialog.onConfirm(); hideConfirm(); }}
+              activeOpacity={0.8}
+              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#7F1D1D', alignItems: 'center', borderWidth: 1, borderColor: '#f87171' }}
+            >
+              <Text style={{ color: '#FCA5A5', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   if (loading) {
     return (
@@ -581,6 +660,7 @@ const Book = () => {
             </View>
           ) : renderInputBar(sendAdminReply)}
         </KeyboardAvoidingView>
+        {confirmModal}
       </SafeAreaView>
     );
   }
@@ -619,7 +699,7 @@ const Book = () => {
             </ScrollView>
           </View>
         )}
-        {loadingConvs ? (
+        {loadingConvs && conversations.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color="#8ED1FC" />
           </View>
@@ -681,11 +761,12 @@ const Book = () => {
             )}
           />
         )}
+        {confirmModal}
       </SafeAreaView>
     );
   }
 
-  
+
   if (activeConvId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
@@ -734,13 +815,13 @@ const Book = () => {
             </View>
           ) : renderInputBar(sendMessage)}
         </KeyboardAvoidingView>
+        {confirmModal}
       </SafeAreaView>
     );
   }
 
-  
+
   return (
-    <>
     <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
         <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
@@ -791,47 +872,8 @@ const Book = () => {
           )}
         />
       )}
+      {confirmModal}
     </SafeAreaView>
-
-    {/* Custom Confirm Dialog */}
-    {confirmDialog && (
-      <Modal transparent animationType="fade" visible={confirmDialog.visible} onRequestClose={hideConfirm}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <View style={{ backgroundColor: '#1E1E2D', borderRadius: 20, padding: 28, width: '100%', borderWidth: 1, borderColor: '#2E2E42' }}>
-            {/* Icon */}
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#2b1a1a', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 24 }}>⚠️</Text>
-            </View>
-            {/* Title */}
-            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
-              {confirmDialog.title}
-            </Text>
-            {/* Body */}
-            <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
-              {confirmDialog.body}
-            </Text>
-            {/* Buttons */}
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
-                onPress={hideConfirm}
-                activeOpacity={0.8}
-                style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2E2E42', alignItems: 'center' }}
-              >
-                <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => { confirmDialog.onConfirm(); hideConfirm(); }}
-                activeOpacity={0.8}
-                style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#7F1D1D', alignItems: 'center', borderWidth: 1, borderColor: '#f87171' }}
-              >
-                <Text style={{ color: '#FCA5A5', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    )}
-    </>
   );
 };
 
