@@ -1,4 +1,4 @@
-import { Link, router } from "expo-router";
+import { Link, router, useFocusEffect } from "expo-router";
 import { Image,ScrollView,Text, View, ImageBackground } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,7 +8,6 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getStaffCode } from "@/lib/staff";
 import { Session } from '@supabase/supabase-js'
-import { useFocusEffect } from '@react-navigation/native';
 import React from "react";
 
 
