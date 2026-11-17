@@ -417,11 +417,18 @@ const Book = () => {
             if (msg.user_id === userId) fetchUserConversations(userId);
           } else {
             const open = selectedConvRef.current;
-            if (open && msg.conversation_id === open.conversation_id) {
+            const isOpen = !!open && msg.conversation_id === open.conversation_id;
+            if (isOpen) {
               setConvMessages(addOnce);
               setTimeout(() => adminListRef.current?.scrollToEnd({ animated: true }), 100);
             }
-            fetchConversations({ silent: true });
+            if (isOpen && !msg.sender_is_admin && !msg.is_read) {
+              // Staff are looking at it, so it shouldn't count as unread.
+              void supabase.from('messages').update({ is_read: true }).eq('id', msg.id)
+                .then(() => fetchConversations({ silent: true }));
+            } else {
+              fetchConversations({ silent: true });
+            }
           }
         }
       )
