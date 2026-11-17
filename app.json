@@ -1,20 +1,22 @@
 {
   "expo": {
-    "name": "Aora",
-    "slug": "aora",
+    "name": "TopOne Admin",
+    "slug": "topone-admin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "aora",
+    "scheme": "topone-admin",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.topone.admin"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.topone.admin"
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +34,15 @@
           "imageWidth": 200
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TopOne Admin uses your photos so you can upload pictures for adverts, collections and salon locations.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
