@@ -34,6 +34,9 @@ const Services = () => {
   const [editRole, setEditRole] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editMainCategory, setEditMainCategory] = useState('');
+  // The group being edited, so renames and duration changes apply to every
+  // option in it instead of splitting it in two.
+  const [editOriginal, setEditOriginal] = useState<{ service: string; mainCategory: string } | null>(null);
 
   useEffect(() => {
     if (selectedLocationId) {
@@ -112,6 +115,7 @@ const Services = () => {
     setEditRole(roleItem.role);
     setEditDuration(String(serviceDuration ?? ''));
     setEditMainCategory(mainCat);
+    setEditOriginal({ service: serviceName, mainCategory: mainCat });
     setShowRolesModal(false);
     setEditModal(true);
   };
@@ -123,18 +127,22 @@ const Services = () => {
     }
     try {
       setLoading(true);
-      // Update this specific role row (service name, price, role, category)
+      // This option's own fields
       const { error } = await supabase.from('services').update({
-        service: editService.trim(),
         price: Number(editPrice),
         role: editRole.trim(),
-        main_category: editMainCategory,
       }).eq('id', editingId);
       if (error) { Alert.alert('Error', 'Could not save changes.'); return; }
-      // Update duration for ALL rows of this service at this location
-      await supabase.from('services').update({ duration: Number(editDuration) || 0 })
-        .eq('service', editService.trim())
+      // Name, category and duration are shared by every option of the service
+      const { error: groupError } = await supabase.from('services').update({
+        service: editService.trim(),
+        main_category: editMainCategory,
+        duration: Number(editDuration) || 0,
+      })
+        .eq('service', editOriginal?.service ?? editService.trim())
+        .eq('main_category', editOriginal?.mainCategory ?? editMainCategory)
         .eq('location_id', selectedLocationId);
+      if (groupError) { Alert.alert('Error', 'Could not save the service name, category or duration.'); return; }
       setEditModal(false);
       await fetchServices();
     } catch (error) {
@@ -144,14 +152,25 @@ const Services = () => {
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
-    const { error } = await supabase.from('services').delete().eq('id', roleId);
-    if (error) { console.error('Error deleting role:', error); return; }
-    await fetchServices();
-    setSelectedService((prev: any) => prev ? {
-      ...prev,
-      roles: prev.roles.filter((r: any) => r.id !== roleId),
-    } : prev);
+  const handleDeleteRole = (roleId: string) => {
+    Alert.alert(
+      'Delete Option',
+      'Delete this price option? Customers will no longer see it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive', onPress: async () => {
+            const { error } = await supabase.from('services').delete().eq('id', roleId);
+            if (error) { Alert.alert('Error', 'Could not delete option.'); return; }
+            await fetchServices();
+            setSelectedService((prev: any) => prev ? {
+              ...prev,
+              roles: prev.roles.filter((r: any) => r.id !== roleId),
+            } : prev);
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteService = async (group: any) => {
@@ -177,20 +196,21 @@ const Services = () => {
   };
 
   const handleAddRole = async (group: any, newRole: string, newPrice: string) => {
-    const { error } = await supabase.from('services').insert([{
+    const { data: inserted, error } = await supabase.from('services').insert([{
       main_category: group.mainCategory,
       service: group.service,
       role: newRole,
       price: Number(newPrice),
       duration: group.duration ?? 0,
       location_id: selectedLocationId,
-    }]);
+    }]).select('id').single();
     if (error) { Alert.alert('Error', 'Could not add option.'); return; }
     await fetchServices();
-    // Refresh the selectedService so the modal reflects the new row
+    // Refresh the selectedService so the modal reflects the new row. It needs
+    // the real id, or the new option can't be edited or deleted until reopened.
     setSelectedService((prev: any) => prev ? {
       ...prev,
-      roles: [...prev.roles, { role: newRole, price: Number(newPrice), id: null }],
+      roles: [...prev.roles, { role: newRole, price: Number(newPrice), id: inserted.id }],
     } : prev);
   };
 

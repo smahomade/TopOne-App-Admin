@@ -4,8 +4,9 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../constants"; 
 import CustomButton from "@/components/CustomButton";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { getStaffCode } from "@/lib/staff";
 import { Session } from '@supabase/supabase-js'
 import { useFocusEffect } from '@react-navigation/native';
 import React from "react";
@@ -17,27 +18,40 @@ export default function Index() {
 
   
 
-    useFocusEffect(
-      React.useCallback(() => {
-        const getSession = async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          setSession(session);
-        };
-        getSession();
-      }, [])
-    );
+  // Re-check on every focus so signing out elsewhere is picked up here.
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
 
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      //console.log("Session data:", session); // Log session data
-      setSession(session);
-      setLoading(false); // Stop loading once session is checked
-    };
-    getSession();
+      const checkSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        let staffSession = session;
 
- 
-  }, [session]);
+        if (session) {
+          try {
+            if ((await getStaffCode(session.user.id)) === null) {
+              // A customer account: not allowed into the staff app.
+              await supabase.auth.signOut();
+              staffSession = null;
+            }
+          } catch {
+            // Offline: keep the session. The database still blocks
+            // non-staff from anything that matters.
+          }
+        }
+
+        if (active) {
+          setSession(staffSession);
+          setLoading(false);
+        }
+      };
+
+      checkSession();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   const handleBooking = () => {
     if (loading) return; // Prevent any navigation while loading
