@@ -60,7 +60,16 @@ type UserConversation = {
   closed_at: string | null;
 };
 
+// The customer app starts booking requests with "[BOOKING_REQUEST]".
+// Older ones may have no brackets.
+const BOOKING_PREFIX_PATTERN = /^\[?BOOKING_REQUEST\]?\s*/;
 
+const isBookingRequestText = (content: string) => BOOKING_PREFIX_PATTERN.test(content);
+const stripBookingPrefix = (content: string) => content.replace(BOOKING_PREFIX_PATTERN, '');
+
+// Inbox preview: a readable label instead of the raw tag.
+const previewText = (content: string) =>
+  isBookingRequestText(content) ? `Booking request: ${stripBookingPrefix(content)}` : content;
 
 const Book = () => {
   const { locations } = useLocation();
@@ -408,11 +417,18 @@ const Book = () => {
             if (msg.user_id === userId) fetchUserConversations(userId);
           } else {
             const open = selectedConvRef.current;
-            if (open && msg.conversation_id === open.conversation_id) {
+            const isOpen = !!open && msg.conversation_id === open.conversation_id;
+            if (isOpen) {
               setConvMessages(addOnce);
               setTimeout(() => adminListRef.current?.scrollToEnd({ animated: true }), 100);
             }
-            fetchConversations({ silent: true });
+            if (isOpen && !msg.sender_is_admin && !msg.is_read) {
+              // Staff are looking at it, so it shouldn't count as unread.
+              void supabase.from('messages').update({ is_read: true }).eq('id', msg.id)
+                .then(() => fetchConversations({ silent: true }));
+            } else {
+              fetchConversations({ silent: true });
+            }
           }
         }
       )
@@ -421,20 +437,17 @@ const Book = () => {
   }, [userId, isAdmin]);
 
 
-  const BOOKING_PREFIX = 'BOOKING_REQUEST';
-
   const renderBubble = (msg: Message) => {
     const isMine = isAdmin ? msg.sender_is_admin : !msg.sender_is_admin;
-    const isBookingRequest = isAdmin && !msg.sender_is_admin && msg.content.startsWith(BOOKING_PREFIX);
+    const isBookingRequest = isAdmin && !msg.sender_is_admin && isBookingRequestText(msg.content);
 
     // ── Admin sees booking requests as a highlight card ──────────────────────
     if (isBookingRequest) {
-      // Strip the prefix and the wait note at the bottom
-      const withoutPrefix = msg.content.replace(/^BOOKING_REQUEST\s*/, '');
-      // Split on the \n\n to separate the main line from the "(Please ... wait)" note
-      const parts = withoutPrefix.split('\n\n');
-      const mainLine = parts[0].trim();   // "John would like to book for ..."
-      const note = parts[1]?.replace(/^\(|\)$/g, '').trim(); // "Please John wait for an admin to respond"
+      // "John would like to book for\n<services>\n\nPreferred dates:\n<dates>\n\n(Please John wait ...)"
+      // The last part is a note for the customer, so it's left off here.
+      const parts = stripBookingPrefix(msg.content).split('\n\n').map((part) => part.trim());
+      const mainLine = parts[0];
+      const note = parts.find((part) => part.startsWith('Preferred dates'));
 
       return (
         <View key={msg.id} style={{ marginHorizontal: 12, marginVertical: 8 }}>
@@ -461,7 +474,7 @@ const Book = () => {
                 {mainLine}
               </Text>
               {!!note && (
-                <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 8, fontStyle: 'italic' }}>
+                <Text style={{ color: '#CDCDE0', fontSize: 14, marginTop: 10, lineHeight: 20 }}>
                   {note}
                 </Text>
               )}
@@ -742,7 +755,7 @@ const Book = () => {
                     {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
                   <Text style={{ color: '#CDCDE0', fontSize: 14, marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
-                    {item.last_message}
+                    {previewText(item.last_message)}
                   </Text>
                 </View>
                 {item.closed_at && (
@@ -864,7 +877,7 @@ const Book = () => {
                   {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
                 <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }} numberOfLines={1}>
-                  {item.last_message}
+                  {previewText(item.last_message)}
                 </Text>
               </View>
               <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#7B7B8B" resizeMode="contain" />

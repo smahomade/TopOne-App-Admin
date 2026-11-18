@@ -1,5 +1,5 @@
-import { Link, router } from "expo-router";
-import { Image,ScrollView,Text, View, ImageBackground } from "react-native";
+import { Link, router, useFocusEffect } from "expo-router";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../constants"; 
@@ -8,7 +8,6 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getStaffCode } from "@/lib/staff";
 import { Session } from '@supabase/supabase-js'
-import { useFocusEffect } from '@react-navigation/native';
 import React from "react";
 
 
@@ -66,10 +65,14 @@ export default function Index() {
     
     <SafeAreaView className="bg-primary h-full ">
 
-      <ImageBackground 
-        source={images.backgroundImage}  // Replace with your background image
-        style={{ flex: 1 }} // Ensures the image covers the full screen
-        >
+      {/* Full-screen background photo (React Native has deprecated ImageBackground) */}
+      <View style={{ flex: 1 }}>
+      <Image
+        source={images.backgroundImage}
+        // Explicit size stops <Image> using the photo's own pixel size
+        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+        resizeMode="cover"
+      />
       {/* Overlay or fade effect */}
       <View style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', flex: 1 }}>
       <ScrollView contentContainerStyle ={{ height: '100%'}}>
@@ -111,7 +114,7 @@ export default function Index() {
       
       {/* Adds light to the status bar (top bar with battery, wifi and time) <StatusBar backgroundColor="#161622" style="light"/> */}
       </View>
-      </ImageBackground>
+      </View>
       <StatusBar style='light'/>
     </SafeAreaView>
   );

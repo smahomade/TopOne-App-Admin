@@ -1,11 +1,16 @@
-import { View, Text, Image, ImageSourcePropType } from 'react-native';
+import { View, Text, Image, type ColorValue, type ImageSourcePropType } from 'react-native';
 import { Tabs } from 'expo-router';
 import { icons } from '../../constants';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Height of the icon-and-label area, not counting the phone's own navigation
+// bar or home indicator underneath it.
+const TAB_BAR_CONTENT_HEIGHT = 64;
 
 type TabIconProps = {
   icon: ImageSourcePropType;
-  color: string;
+  color: ColorValue;
   name: string;
   focused: boolean;
   noTint?: boolean;
@@ -35,20 +40,27 @@ const TabIcon = ({ icon, color, name, focused, noTint, size = 24 }: TabIconProps
 };
 
 const TabsLayout = () => {
+  // Android now draws the app under the system navigation bar (as iOS always
+  // has), and the tab bar pads itself by that much, so add it on top.
+  const { bottom } = useSafeAreaInsets();
+
   return (
     <>
-      <StatusBar backgroundColor="#161622" style="dark" />
+      <StatusBar style="dark" />
 
       <Tabs
         screenOptions={{
           tabBarShowLabel: false,
+          // The tab bar now boxes icons to 31x28 at the top of each tab, which
+          // wraps our labels and pushes icon and label up to the top edge.
+          tabBarIconStyle: { width: '100%', height: '100%' },
           tabBarActiveTintColor: '#8ED1FC',
           tabBarInactiveTintColor: '#CDCDE0',
           tabBarStyle: {
             backgroundColor: '#161622',
             borderTopWidth: 1,
             borderTopColor: '#232533',
-            height: 84,
+            height: TAB_BAR_CONTENT_HEIGHT + bottom,
           },
         }}
       >
