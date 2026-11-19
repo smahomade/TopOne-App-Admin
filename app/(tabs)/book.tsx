@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useIsFocused } from 'expo-router';
 import {
+  AppState,
   View,
   Text,
   FlatList,
@@ -109,6 +110,18 @@ const Book = () => {
   const activeConvIdRef = useRef<string | null>(null);
   useEffect(() => { selectedConvRef.current = selectedConv; }, [selectedConv]);
   useEffect(() => { activeConvIdRef.current = activeConvId; }, [activeConvId]);
+
+  // Whether staff can actually see this screen: it's the open tab and the app
+  // is in the foreground. Read by the realtime handler too.
+  const isFocused = useIsFocused();
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
+  const onScreen = isFocused && appActive;
+  const onScreenRef = useRef(onScreen);
+  useEffect(() => { onScreenRef.current = onScreen; }, [onScreen]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => setAppActive(state === 'active'));
+    return () => subscription.remove();
+  }, []);
 
   // State updates are async, so a quick double tap could send twice.
   const sendingRef = useRef(false);
@@ -314,13 +327,26 @@ const Book = () => {
       .eq('conversation_id', conv.conversation_id)
       .order('created_at', { ascending: true });
     if (!error) setConvMessages(data ?? []);
+    // Marked read by the effect below.
+  };
 
+  const markConversationRead = async (conversationId: string) => {
     await supabase.from('messages').update({ is_read: true })
-      .eq('conversation_id', conv.conversation_id)
+      .eq('conversation_id', conversationId)
       .eq('sender_is_admin', false).eq('is_read', false);
 
     await fetchConversations({ silent: true });
   };
+
+  // Customer messages that arrive while the app is in the background, or
+  // while another tab is showing, haven't been seen, so they stay unread and
+  // are emailed to the salon if nobody opens them
+  // (scripts/message_notifications.sql in the customer app's repo). Once the
+  // open conversation is back on screen, they have been seen.
+  const openConvId = selectedConv?.conversation_id ?? null;
+  useEffect(() => {
+    if (isAdmin && onScreen && openConvId) void markConversationRead(openConvId);
+  }, [isAdmin, onScreen, openConvId]);
 
   const sendAdminReply = async () => {
     if (sendingRef.current || !inputText.trim() || !selectedConv) return;
@@ -422,7 +448,7 @@ const Book = () => {
               setConvMessages(addOnce);
               setTimeout(() => adminListRef.current?.scrollToEnd({ animated: true }), 100);
             }
-            if (isOpen && !msg.sender_is_admin && !msg.is_read) {
+            if (isOpen && onScreenRef.current && !msg.sender_is_admin && !msg.is_read) {
               // Staff are looking at it, so it shouldn't count as unread.
               void supabase.from('messages').update({ is_read: true }).eq('id', msg.id)
                 .then(() => fetchConversations({ silent: true }));
@@ -689,6 +715,9 @@ const Book = () => {
           <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
           <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }}>
             {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+          </Text>
+          <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 4 }}>
+            Messages nobody opens within 5 minutes are emailed to the salon.
           </Text>
         </View>
         {locations.length > 1 && (
