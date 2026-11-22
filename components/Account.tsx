@@ -4,6 +4,7 @@ import { View, Alert, ScrollView, SafeAreaView, Text, TouchableOpacity, Activity
 import { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import FormField from '../components/FormField';
+import PhoneField, { isFullPhoneNumber } from '../components/PhoneField';
 
 export default function Account({ session }: { session: Session }) {
   const [loading, setLoading] = useState(true);
@@ -11,6 +12,10 @@ export default function Account({ session }: { session: Session }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  // The number as saved, so an untouched older number can still be saved
+  // alongside a name change without being rejected.
+  const [savedPhoneNumber, setSavedPhoneNumber] = useState('');
+  const [showPhoneError, setShowPhoneError] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -36,7 +41,8 @@ export default function Account({ session }: { session: Session }) {
         setAdminCode(data.admin_code); // Treat as a number
         setFirstName(data.first_name);
         setLastName(data.last_name);
-        setPhoneNumber(data.phone_number);
+        setPhoneNumber(data.phone_number ?? '');
+        setSavedPhoneNumber(data.phone_number ?? '');
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -75,6 +81,8 @@ export default function Account({ session }: { session: Session }) {
       if (error) {
         throw error;
       }
+
+      setSavedPhoneNumber(phone_number);
     } catch (error) {
       if (error instanceof Error) {
         Alert.alert(error.message);
@@ -127,24 +135,36 @@ export default function Account({ session }: { session: Session }) {
           OtherStyles="mt-5"
           titleColor="text-gray-100"
         />
-        <FormField
-          title="Phone Number"
+        {/* The same field as the customer app, so the number shows with its
+            flag and country code, and a new one is saved as +44… */}
+        <PhoneField
           value={phoneNumber}
-          handleChangeText={setPhoneNumber}
-          placeholder="Enter your phone number"
+          onChangePhone={setPhoneNumber}
           OtherStyles="mt-5"
-          keyboardType="phone-pad"
-          titleColor="text-gray-100"
+          hasError={showPhoneError}
         />
+        {showPhoneError && (
+          <Text className="mt-2 font-pregular text-sm text-[#FF8A8A]">
+            Enter your full phone number.
+          </Text>
+        )}
 
         <TouchableOpacity
-          onPress={() =>
+          onPress={() => {
+            // A cleared field still reports its country code ("+44"), so a
+            // changed number must be a whole one before it's saved
+            if (phoneNumber !== savedPhoneNumber && !isFullPhoneNumber(phoneNumber)) {
+              setShowPhoneError(true);
+              return;
+            }
+
+            setShowPhoneError(false);
             updateProfile({
               first_name: firstName,
               last_name: lastName,
               phone_number: phoneNumber,
-            })
-          }
+            });
+          }}
           disabled={loading}
           activeOpacity={0.8}
           className="bg-secondary rounded-2xl h-16 items-center justify-center mt-8 mb-3"
