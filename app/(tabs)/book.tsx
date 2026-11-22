@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
@@ -45,6 +46,7 @@ type Conversation = {
   user_id: string;
   first_name: string;
   last_name: string;
+  phone_number: string | null;
   last_message: string;
   last_message_at: string;
   started_at: string;
@@ -71,6 +73,20 @@ const stripBookingPrefix = (content: string) => content.replace(BOOKING_PREFIX_P
 // Inbox preview: a readable label instead of the raw tag.
 const previewText = (content: string) =>
   isBookingRequestText(content) ? `Booking request: ${stripBookingPrefix(content)}` : content;
+
+// The number to dial for a customer, or null when it doesn't look like a whole
+// phone number. Some old accounts hold short test values such as "999", and
+// tapping one of those must never open the dialer with an emergency number.
+const dialableNumber = (phone: string | null) => {
+  const compact = (phone ?? '').replace(/[\s()-]/g, '');
+  return /^\+\d{8,15}$/.test(compact) || /^0\d{9,10}$/.test(compact) ? compact : null;
+};
+
+const callCustomer = (phone: string) => {
+  Linking.openURL(`tel:${phone}`).catch(() =>
+    Alert.alert("Couldn't start a call", `This device can't make phone calls. The number is ${phone}.`)
+  );
+};
 
 const Book = () => {
   const { locations } = useLocation();
@@ -270,11 +286,15 @@ const Book = () => {
 
       const userIds = [...new Set((msgs ?? []).map((m) => m.user_id))];
       const { data: profiles } = await supabase
-        .from('profiles').select('id, first_name, last_name').in('id', userIds);
+        .from('profiles').select('id, first_name, last_name, phone_number').in('id', userIds);
 
-      const profileMap: Record<string, { first_name: string; last_name: string }> = {};
+      const profileMap: Record<string, { first_name: string; last_name: string; phone_number: string | null }> = {};
       for (const p of profiles ?? []) {
-        profileMap[p.id] = { first_name: p.first_name ?? 'Customer', last_name: p.last_name ?? '' };
+        profileMap[p.id] = {
+          first_name: p.first_name ?? 'Customer',
+          last_name: p.last_name ?? '',
+          phone_number: p.phone_number?.trim() || null,
+        };
       }
 
       const map: Record<string, Conversation> = {};
@@ -286,6 +306,7 @@ const Book = () => {
             user_id: m.user_id,
             first_name: profileMap[m.user_id]?.first_name ?? 'Customer',
             last_name: profileMap[m.user_id]?.last_name ?? '',
+            phone_number: profileMap[m.user_id]?.phone_number ?? null,
             last_message: m.content,
             last_message_at: m.created_at,
             started_at: m.created_at,
@@ -664,6 +685,26 @@ const Book = () => {
             <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>
               {selectedConv.first_name} {selectedConv.last_name}
             </Text>
+            {/* The customer's number, which the salon uses to confirm bookings.
+                Tapping it opens the phone's dialer; anything that isn't a whole
+                number is shown but can't be tapped. */}
+            {selectedConv.phone_number ? (
+              dialableNumber(selectedConv.phone_number) ? (
+                <TouchableOpacity
+                  onPress={() => callCustomer(dialableNumber(selectedConv.phone_number)!)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Call ${selectedConv.first_name}, ${selectedConv.phone_number}`}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  <Text style={{ color: '#8ED1FC', fontSize: 13, fontWeight: '600' }}>
+                    {selectedConv.phone_number}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={{ color: '#CDCDE0', fontSize: 13 }}>{selectedConv.phone_number}</Text>
+              )
+            ) : null}
             <Text style={{ color: '#7B7B8B', fontSize: 12 }}>
               Started {new Date(selectedConv.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
