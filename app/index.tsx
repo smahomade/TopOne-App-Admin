@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { getStaffCode } from "@/lib/staff";
 import { Session } from '@supabase/supabase-js'
 import React from "react";
+import SalonLogo from '../components/SalonLogo';
 
 
 export default function Index() {
@@ -79,9 +80,8 @@ export default function Index() {
 
         {/* Top Logo Image - Positioned at the top */}
         <View className="w-full items-center justify-start pt-10">
-          <Image 
-            source={images.logoTopOneWhite}
-            className="w-[200px] h-[85px]"
+          <SalonLogo 
+            style={{ width: 200, height: 85 }}
             resizeMode="contain"
           />
         </View>

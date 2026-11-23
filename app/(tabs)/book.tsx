@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { images, icons } from '../../constants';
 import { useLocation } from '../../context/LocationContext';
+import SalonLogo from '../../components/SalonLogo';
 
 
 const generateUUID = (): string =>
@@ -750,7 +751,8 @@ const Book = () => {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
         <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 12 }}>
-          <Image source={images.logoTopOneWhite} style={{ width: 160, height: 64 }} resizeMode="contain" />
+          <SalonLogo style={{ width: 160, height: 64 }} resizeMode="contain"
+          />
         </View>
         <View style={{ paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
           <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>

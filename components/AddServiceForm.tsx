@@ -16,6 +16,9 @@ const AddServiceForm = ({
   mainCategory,
   setMainCategory,
   existingCategories,
+  serviceCategory,
+  setServiceCategory,
+  existingSections,
   service,
   price,
   role,
@@ -30,6 +33,9 @@ const AddServiceForm = ({
   mainCategory: string;
   setMainCategory: (v: string) => void;
   existingCategories: string[];
+  serviceCategory: string;
+  setServiceCategory: (v: string) => void;
+  existingSections: string[];
   service: string;
   price: string;
   role: string;
@@ -72,9 +78,37 @@ const AddServiceForm = ({
         className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
       />
 
+      {/* Sections group a category's services under headings, like
+          Ladies / Gents under Hair, or Face / Arms under Laser. */}
+      <Text className="text-gray-100 font-pregular text-xs mb-2">Section (optional)</Text>
+      {existingSections.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+          {existingSections.map((section) => (
+            <TouchableOpacity
+              key={section}
+              onPress={() => setServiceCategory(serviceCategory === section ? '' : section)}
+              className={`mr-2 px-4 py-2 rounded-full border ${
+                serviceCategory === section ? 'bg-secondary border-secondary' : 'bg-black-200 border-black-200'
+              }`}
+            >
+              <Text className={`font-psemibold text-sm ${
+                serviceCategory === section ? 'text-primary' : 'text-gray-100'
+              }`}>{section}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+      <TextInput
+        value={existingSections.includes(serviceCategory) ? '' : serviceCategory}
+        onChangeText={setServiceCategory}
+        placeholder={existingSections.length > 0 ? 'Or type a new section...' : 'Section, e.g. Ladies'}
+        placeholderTextColor="#7B7B8B"
+        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+      />
+
       {inputField(service, setService, 'Service name')}
-      {inputField(duration, setDuration, 'Duration (minutes)', true)}
-      {inputField(price, setPrice, 'Price (£)', true)}
+      {inputField(duration, setDuration, 'Duration in minutes (optional)', true)}
+      {inputField(price, setPrice, 'Price (£), or empty for "Price on consultation"', true)}
       {inputField(role, setRole, 'Role (e.g. Senior Stylist)')}
 
       <TouchableOpacity

@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { images, icons } from '../../constants';
 import { supabase } from '../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import SalonLogo from '../../components/SalonLogo';
 
 type LocationItem = {
   id: string;
@@ -446,8 +447,7 @@ const Location = () => {
             </TouchableOpacity>
 
             <View className="items-center mb-6">
-              <Image
-                source={images.logoTopOneWhite}
+              <SalonLogo
                 style={{ width: 160, height: 64 }}
                 resizeMode="contain"
               />

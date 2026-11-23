@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Image, AppState, Alert } from 'react-native'
+import { View, Text, ScrollView, Image, AppState, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import React, { useState, useEffect } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { images } from '../../constants'
@@ -6,6 +6,7 @@ import FormField from '../../components/FormField'
 import CustomButton from '../../components/CustomButton'
 import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import SalonLogo from '../../components/SalonLogo';
 
 
 const SignIn = () => {
@@ -75,13 +76,16 @@ const SignIn = () => {
 
   return (
     <SafeAreaView className="bg-primary flex-1">
+      {/* Shrinks the form to the space above the keyboard, so the password
+          field and Sign In button can be scrolled to instead of hiding
+          behind it. Same setup as the chat in book.tsx. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <View className="flex-1 justify-center px-6 py-12">
 
           {/* Logo */}
           <View className="items-center mb-10">
-            <Image
-              source={images.logoTopOneWhite}
+            <SalonLogo
               resizeMode="contain"
               style={{ width: 160, height: 64 }}
             />
@@ -134,6 +138,7 @@ const SignIn = () => {
 
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }

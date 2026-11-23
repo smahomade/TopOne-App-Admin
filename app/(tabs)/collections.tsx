@@ -12,11 +12,15 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { icons, images } from '../../constants';
+import ConfirmModal from '../../components/ConfirmModal';
+import SalonLogo from '../../components/SalonLogo';
 
 const BUCKET = 'collection';
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -31,6 +35,10 @@ type CollectionEntry = {
   image_url: string;
   sort_order: number;
   show_year: boolean;
+  // Set for the whole bundle: whether customers see a line of text under each image.
+  show_captions: boolean;
+  // This image's own line of text. Empty means the customer app shows "year · subtitle".
+  caption: string | null;
 };
 
 type YearGroup = {
@@ -39,8 +47,13 @@ type YearGroup = {
   subtitle: string;
   sort_order: number;
   show_year: boolean;
+  show_captions: boolean;
   entries: CollectionEntry[];
 };
+
+// A bundle is every image with the same title (or year when there's no title).
+const getGroupKey = (group: { title?: string | null; year?: string | number | null }) =>
+  group.title?.trim() || String(group.year ?? '');
 
 const CATEGORIES = ['mens', 'ladies'];
 
@@ -77,11 +90,23 @@ const Collections = () => {
   const [editBundleShowYear, setEditBundleShowYear] = useState(true);
   const [editBundleSubtitle, setEditBundleSubtitle] = useState('');
   const [editBundleSortOrder, setEditBundleSortOrder] = useState('');
+  const [editBundleShowCaptions, setEditBundleShowCaptions] = useState(false);
   const [editBundleSaving, setEditBundleSaving] = useState(false);
+
+  // Delete bundle pop-up
+  const [confirmDeleteBundle, setConfirmDeleteBundle] = useState(false);
+  const [deletingBundle, setDeletingBundle] = useState(false);
+  const [deleteBundleError, setDeleteBundleError] = useState<string | null>(null);
+
+  // Remove image pop-up
+  const [pendingRemoval, setPendingRemoval] = useState<CollectionEntry | null>(null);
+  const [removingImage, setRemovingImage] = useState(false);
+  const [removeImageError, setRemoveImageError] = useState<string | null>(null);
 
   // Edit individual image
   const [editImageId, setEditImageId] = useState<string | null>(null);
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [editImageCaption, setEditImageCaption] = useState('');
   const [editImageSaving, setEditImageSaving] = useState(false);
 
   useEffect(() => {
@@ -93,7 +118,7 @@ const Collections = () => {
     try {
       const { data, error } = await supabase
         .from('collections')
-        .select('id, year, title, subtitle, category, image_url, sort_order, show_year')
+        .select('id, year, title, subtitle, category, image_url, sort_order, show_year, show_captions, caption')
         .order('year', { ascending: false });
 
       if (error) throw error;
@@ -109,10 +134,12 @@ const Collections = () => {
   const yearGroups = useMemo<YearGroup[]>(() => {
     const map: Record<string, YearGroup> = {};
     for (const entry of entries) {
-      const key = entry.title?.trim() || String(entry.year);
+      const key = getGroupKey(entry);
       if (!map[key]) {
-        map[key] = { year: String(entry.year ?? ''), title: entry.title, subtitle: entry.subtitle, sort_order: entry.sort_order ?? 0, show_year: entry.show_year !== false, entries: [] };
+        map[key] = { year: String(entry.year ?? ''), title: entry.title, subtitle: entry.subtitle, sort_order: entry.sort_order ?? 0, show_year: entry.show_year !== false, show_captions: false, entries: [] };
       }
+      // On for the bundle if any of its images has it on.
+      if (entry.show_captions === true) map[key].show_captions = true;
       map[key].entries.push(entry);
     }
     return Object.values(map).sort((a, b) => {
@@ -124,6 +151,15 @@ const Collections = () => {
       return ta.localeCompare(tb);
     });
   }, [entries]);
+
+  // Keeps an open bundle in step with the latest list, so an image added a
+  // moment ago gets its real id (needed to remove it or edit its subtext).
+  useEffect(() => {
+    setDetailGroup(prev => {
+      if (!prev) return prev;
+      return yearGroups.find(g => getGroupKey(g) === getGroupKey(prev)) ?? prev;
+    });
+  }, [yearGroups]);
 
   const pickImage = async (onPick: (uri: string) => void) => {
     try {
@@ -192,12 +228,15 @@ const Collections = () => {
       const image_url = newImageUri.startsWith('http')
         ? newImageUri
         : await uploadImage(newImageUri, (newYear ?? '').trim() || 'misc');
+      // A new image in an existing bundle follows that bundle's subtext setting.
+      const show_captions = yearGroups.find(g => getGroupKey(g) === newTitle.trim())?.show_captions ?? false;
       const { error } = await supabase.from('collections').insert({
         year: (newYear ?? '').trim() || null,
         title: newTitle.trim(),
         subtitle: newSubtitle.trim(),
         category: newCategory,
         image_url,
+        show_captions,
       });
       if (error) throw error;
 
@@ -211,6 +250,8 @@ const Collections = () => {
         image_url,
         sort_order: 0,
         show_year: true,
+        show_captions,
+        caption: null,
       };
       setEntries(prev => [...prev, newEntry]);
       if (detailGroup) {
@@ -228,23 +269,38 @@ const Collections = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert('Remove image', 'Remove this image from the collection?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive',
-        onPress: async () => {
-          const { error } = await supabase.from('collections').delete().eq('id', id);
-          if (error) return Alert.alert('Error', error.message);
-          setEntries(prev => prev.filter(e => e.id !== id));
-          if (detailGroup) {
-            const updated = detailGroup.entries.filter(e => e.id !== id);
-            if (updated.length === 0) setDetailGroup(null);
-            else setDetailGroup({ ...detailGroup, entries: updated });
-          }
-        },
-      },
-    ]);
+  // Opens the "Remove image?" pop-up for this image.
+  const handleDelete = (entry: CollectionEntry) => {
+    setRemoveImageError(null);
+    setPendingRemoval(entry);
+  };
+
+  const closeRemoveImage = () => {
+    setPendingRemoval(null);
+    setRemoveImageError(null);
+  };
+
+  const confirmRemoveImage = async () => {
+    if (!pendingRemoval) return;
+    const id = pendingRemoval.id;
+    setRemovingImage(true);
+    setRemoveImageError(null);
+    try {
+      const { error } = await supabase.from('collections').delete().eq('id', id);
+      if (error) {
+        setRemoveImageError(`Couldn't remove it: ${error.message}`);
+        return;
+      }
+      setEntries(prev => prev.filter(e => e.id !== id));
+      setDetailGroup(prev => {
+        if (!prev) return prev;
+        const updated = prev.entries.filter(e => e.id !== id);
+        return updated.length === 0 ? null : { ...prev, entries: updated };
+      });
+      setPendingRemoval(null);
+    } finally {
+      setRemovingImage(false);
+    }
   };
 
   const openEditBundle = (group: YearGroup) => {
@@ -254,6 +310,7 @@ const Collections = () => {
     setEditBundleShowYear(group.show_year !== false);
     setEditBundleSubtitle(group.subtitle ?? '');
     setEditBundleSortOrder(group.sort_order != null ? String(group.sort_order) : '');
+    setEditBundleShowCaptions(group.show_captions === true);
     setEditBundleModal(true);
   };
 
@@ -268,6 +325,7 @@ const Collections = () => {
         subtitle: editBundleSubtitle.trim(),
         sort_order: editBundleSortOrder.trim() !== '' ? Number(editBundleSortOrder) : 0,
         show_year: editBundleShowYear,
+        show_captions: editBundleShowCaptions,
       };
       const q = supabase.from('collections').update(updates);
       const { error } = editingBundle.title?.trim()
@@ -276,7 +334,7 @@ const Collections = () => {
       if (error) throw error;
       setEditBundleModal(false);
       if (detailGroup?.year === editingBundle.year) {
-        setDetailGroup(prev => prev ? { ...prev, year: updates.year, title: updates.title, subtitle: updates.subtitle } : prev);
+        setDetailGroup(prev => prev ? { ...prev, year: updates.year, title: updates.title, subtitle: updates.subtitle, show_captions: updates.show_captions } : prev);
       }
       await fetchEntries();
     } catch (err: any) {
@@ -286,50 +344,78 @@ const Collections = () => {
     }
   };
 
+  // Opens the "Delete bundle?" pop-up over the Edit Bundle sheet.
   const handleDeleteBundle = () => {
     if (!editingBundle) return;
-    Alert.alert(
-      'Delete Bundle',
-      `Delete the "${editingBundle.title || editingBundle.year}" bundle and all ${editingBundle.entries.length} images?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All', style: 'destructive',
-          onPress: async () => {
-            const deleteQ = editingBundle.title?.trim()
-              ? supabase.from('collections').delete().eq('title', editingBundle.title)
-              : supabase.from('collections').delete().eq('year', editingBundle.year);
-            const { error } = await deleteQ;
-            if (error) return Alert.alert('Error', error.message);
-            setEditBundleModal(false);
-            setDetailGroup(null);
-            await fetchEntries();
-          },
-        },
-      ]
-    );
+    setDeleteBundleError(null);
+    setConfirmDeleteBundle(true);
   };
 
+  const confirmDeleteBundleNow = async () => {
+    if (!editingBundle) return;
+    setDeletingBundle(true);
+    setDeleteBundleError(null);
+    try {
+      const deleteQ = editingBundle.title?.trim()
+        ? supabase.from('collections').delete().eq('title', editingBundle.title)
+        : supabase.from('collections').delete().eq('year', editingBundle.year);
+      const { error } = await deleteQ;
+      if (error) {
+        setDeleteBundleError(`Couldn't delete it: ${error.message}`);
+        return;
+      }
+      setConfirmDeleteBundle(false);
+      setEditBundleModal(false);
+      setDetailGroup(null);
+      await fetchEntries();
+    } finally {
+      setDeletingBundle(false);
+    }
+  };
+
+  // Opens the Edit Image sheet for one image of the open bundle.
+  const openEditImage = (entry: CollectionEntry) => {
+    setEditImageId(entry.id);
+    setEditImageUri(null);
+    setEditImageCaption(entry.caption ?? '');
+  };
+
+  const closeEditImage = () => {
+    setEditImageId(null);
+    setEditImageUri(null);
+    setEditImageCaption('');
+  };
+
+  const editingImageEntry = editImageId
+    ? detailGroup?.entries.find(e => e.id === editImageId) ?? entries.find(e => e.id === editImageId)
+    : undefined;
+  // The Subtext field only shows for bundles that have subtext switched on.
+  const editImageShowsCaption = detailGroup?.show_captions === true;
+  const editImageCaptionChanged =
+    editImageShowsCaption && editImageCaption.trim() !== (editingImageEntry?.caption ?? '').trim();
+  const canSaveImage = !!editImageUri || editImageCaptionChanged;
+
   const handleSaveImage = async () => {
-    if (!editImageId || !editImageUri) return;
+    if (!editImageId || !canSaveImage) return;
     setEditImageSaving(true);
     try {
-      let image_url = editImageUri;
-      if (!editImageUri.startsWith('http')) {
-        const entry = entries.find(e => e.id === editImageId);
-        image_url = await uploadImage(editImageUri, entry?.year ?? 'misc');
+      const updates: Partial<CollectionEntry> = {};
+      if (editImageUri) {
+        updates.image_url = editImageUri.startsWith('http')
+          ? editImageUri
+          : await uploadImage(editImageUri, editingImageEntry?.year ?? 'misc');
       }
-      const { error } = await supabase.from('collections').update({ image_url }).eq('id', editImageId);
+      if (editImageCaptionChanged) {
+        updates.caption = editImageCaption.trim() || null;
+      }
+      const { error } = await supabase.from('collections').update(updates).eq('id', editImageId);
       if (error) throw error;
-      setEntries(prev => prev.map(e => e.id === editImageId ? { ...e, image_url } : e));
-      if (detailGroup) {
-        setDetailGroup(prev => prev ? {
-          ...prev,
-          entries: prev.entries.map(e => e.id === editImageId ? { ...e, image_url } : e),
-        } : prev);
-      }
-      setEditImageId(null);
-      setEditImageUri(null);
+      setEntries(prev => prev.map(e => e.id === editImageId ? { ...e, ...updates } : e));
+      setDetailGroup(prev => prev ? {
+        ...prev,
+        entries: prev.entries.map(e => e.id === editImageId ? { ...e, ...updates } : e),
+      } : prev);
+      closeEditImage();
     } catch (err: any) {
       Alert.alert('Save failed', err?.message || 'Could not update image.');
     } finally {
@@ -401,7 +487,8 @@ const Collections = () => {
                   <Text style={{ color: '#FFFFFF', fontSize: 24, fontFamily: 'Poppins-SemiBold', marginTop: 2 }}>Collections</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Image source={images.logoTopOneWhite} style={{ width: 120, height: 52 }} resizeMode="contain" />
+                  <SalonLogo style={{ width: 120, height: 52 }} resizeMode="contain"
+                  />
                   <TouchableOpacity
                     onPress={() => setAddModal(true)}
                     style={{ backgroundColor: '#FF9C01', borderRadius: 999, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
@@ -444,44 +531,76 @@ const Collections = () => {
 
           <FlatList
             data={detailGroup?.entries ?? []}
+            extraData={detailGroup?.show_captions}
             keyExtractor={e => e.id}
             numColumns={2}
             contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View
-                style={{ width: DETAIL_COL_WIDTH, margin: 8, aspectRatio: 0.75 }}
+                style={{ width: DETAIL_COL_WIDTH, margin: 8 }}
                 className="rounded-2xl overflow-hidden bg-black-100"
               >
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-                {/* Category badge */}
-                <View
-                  className="absolute top-2 left-2 px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: item.category?.toLowerCase() === 'ladies' ? '#FF6BBB44' : '#4B8BFF44' }}
-                >
-                  <Text className="text-white font-pregular text-xs">{item.category}</Text>
-                </View>
-                {/* Edit & Delete */}
-                <View style={{ position: 'absolute', top: 8, right: 8, gap: 6 }}>
-                  <TouchableOpacity
-                    onPress={() => { setEditImageId(item.id); setEditImageUri(null); }}
-                    className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
+                <View style={{ width: '100%', aspectRatio: 0.75 }}>
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                  {/* Category badge */}
+                  <View
+                    className="absolute top-2 left-2 px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: item.category?.toLowerCase() === 'ladies' ? '#FF6BBB44' : '#4B8BFF44' }}
                   >
-                    <Image source={icons.upload} className="w-3 h-3" tintColor="#8ED1FC" resizeMode="contain" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(item.id)}
-                    className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
-                  >
-                    <Image source={icons.logout} className="w-3 h-3" tintColor="#FF6B6B" resizeMode="contain" />
-                  </TouchableOpacity>
+                    <Text className="text-white font-pregular text-xs">{item.category}</Text>
+                  </View>
+                  {/* Edit & Delete */}
+                  <View style={{ position: 'absolute', top: 8, right: 8, gap: 6 }}>
+                    <TouchableOpacity
+                      onPress={() => openEditImage(item)}
+                      className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
+                    >
+                      <Image source={icons.upload} className="w-3 h-3" tintColor="#8ED1FC" resizeMode="contain" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item)}
+                      className="bg-black-200 w-7 h-7 rounded-full items-center justify-center"
+                    >
+                      <Image source={icons.logout} className="w-3 h-3" tintColor="#FF6B6B" resizeMode="contain" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
+                {/* The line customers see under this image, when the bundle has subtext on. */}
+                {detailGroup?.show_captions ? (
+                  <TouchableOpacity onPress={() => openEditImage(item)} activeOpacity={0.7} className="px-3 py-2.5">
+                    {item.caption?.trim() ? (
+                      <Text className="text-white font-pmedium text-xs" numberOfLines={2}>{item.caption}</Text>
+                    ) : (
+                      <Text className="font-pregular text-xs" style={{ color: '#7B7B8B' }}>+ Add subtext</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
               </View>
             )}
+          />
+
+          {/* Inside the bundle's own Modal, so it shows on top of it on iPhone too. */}
+          <ConfirmModal
+            visible={!!pendingRemoval}
+            title="Remove this image?"
+            message={
+              detailGroup && detailGroup.entries.length === 1
+                ? `It's the last image in "${detailGroup.title || detailGroup.year}", so the bundle will go too. The picture stays in your uploads.`
+                : `Customers won't see it in "${detailGroup?.title || detailGroup?.year}" any more. The picture stays in your uploads, so you can add it back later.`
+            }
+            imageUrl={pendingRemoval?.image_url}
+            confirmText="Remove image"
+            cancelText="Keep it"
+            loadingText="Removing ..."
+            isLoading={removingImage}
+            errorText={removeImageError}
+            onConfirm={() => void confirmRemoveImage()}
+            onCancel={closeRemoveImage}
           />
         </SafeAreaView>
       </Modal>
@@ -699,9 +818,16 @@ const Collections = () => {
       </Modal>
 
       {/* ─── Edit Bundle Modal ─────────────────────────────── */}
-      <Modal visible={editBundleModal} transparent animationType="slide">
+      <Modal visible={editBundleModal} transparent animationType="slide" onRequestClose={() => setEditBundleModal(false)}>
+        {/* Shrinks the sheet to the space above the keyboard; the fields scroll inside it. */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+          <View className="bg-black-100 rounded-t-2xl" style={{ maxHeight: '92%' }}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
+          >
             <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
             <Text className="text-white font-psemibold text-xl mb-4">Edit Bundle</Text>
 
@@ -761,8 +887,37 @@ const Collections = () => {
               placeholder="e.g. 1, 2, 3 ..."
               placeholderTextColor="#7B7B8B"
               keyboardType="numeric"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
             />
+
+            {/* Per-bundle switch for the line of text under each image in the customer app. */}
+            <TouchableOpacity
+              onPress={() => setEditBundleShowCaptions(v => !v)}
+              activeOpacity={0.8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: editBundleShowCaptions }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, marginBottom: 16,
+                backgroundColor: editBundleShowCaptions ? '#0f2b1a' : '#232533',
+                borderWidth: 1, borderColor: editBundleShowCaptions ? '#4ade80' : '#555568' }}
+            >
+              <View style={{ width: 20, height: 20, borderRadius: 5, borderWidth: 1.5,
+                borderColor: editBundleShowCaptions ? '#4ade80' : '#7B7B8B',
+                backgroundColor: editBundleShowCaptions ? '#4ade80' : 'transparent',
+                alignItems: 'center', justifyContent: 'center' }}
+              >
+                {editBundleShowCaptions && <Text style={{ color: '#161622', fontSize: 13, fontWeight: '700', lineHeight: 16 }}>✓</Text>}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: editBundleShowCaptions ? '#4ade80' : '#FFFFFF', fontSize: 14, fontFamily: 'Poppins-SemiBold' }}>
+                  Add subtext for each image
+                </Text>
+                <Text style={{ color: '#CDCDE0', fontSize: 12, fontFamily: 'Poppins-Regular', marginTop: 2 }}>
+                  {editBundleShowCaptions
+                    ? 'A line of text shows under every image. Write it per image from the bundle.'
+                    : 'Off: customers see the images with no text under them.'}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleSaveBundle}
@@ -783,17 +938,46 @@ const Collections = () => {
             <TouchableOpacity onPress={() => setEditBundleModal(false)} className="items-center py-2">
               <Text className="text-gray-100 font-pregular">Cancel</Text>
             </TouchableOpacity>
+          </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
+
+        {/* Inside the Edit Bundle sheet's Modal, so it shows on top of the sheet. */}
+        <ConfirmModal
+          visible={confirmDeleteBundle}
+          title="Delete this bundle?"
+          message={
+            editingBundle
+              ? `"${editingBundle.title || editingBundle.year}" and all ${editingBundle.entries.length} ${editingBundle.entries.length === 1 ? 'image' : 'images'} in it will be taken out of the app. The pictures stay in your uploads.`
+              : ''
+          }
+          imageUrl={editingBundle?.entries[0]?.image_url}
+          confirmText="Delete bundle"
+          cancelText="Keep it"
+          loadingText="Deleting ..."
+          isLoading={deletingBundle}
+          errorText={deleteBundleError}
+          onConfirm={() => void confirmDeleteBundleNow()}
+          onCancel={() => { setConfirmDeleteBundle(false); setDeleteBundleError(null); }}
+        />
       </Modal>
 
       {/* ─── Edit Image Modal ──────────────────────────────── */}
       {editImageId !== null && (
-        <Modal visible={true} transparent animationType="slide">
+        <Modal visible={true} transparent animationType="slide" onRequestClose={closeEditImage}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+            <View className="bg-black-100 rounded-t-2xl" style={{ maxHeight: '92%' }}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
+            >
               <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-              <Text className="text-white font-psemibold text-xl mb-4">Replace Image</Text>
+              <Text className="text-white font-psemibold text-xl mb-4">
+                {editImageShowsCaption ? 'Edit Image' : 'Replace Image'}
+              </Text>
 
               <TouchableOpacity
                 onPress={() => pickImage(setEditImageUri)}
@@ -801,7 +985,7 @@ const Collections = () => {
                 style={{ height: 160 }}
               >
                 <Image
-                  source={{ uri: editImageUri ?? entries.find(e => e.id === editImageId)?.image_url }}
+                  source={{ uri: editImageUri ?? editingImageEntry?.image_url }}
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="cover"
                 />
@@ -819,27 +1003,48 @@ const Collections = () => {
                 <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
               </TouchableOpacity>
 
+              {editImageShowsCaption && (
+                <>
+                  <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Subtext</Text>
+                  <TextInput
+                    value={editImageCaption}
+                    onChangeText={setEditImageCaption}
+                    placeholder="e.g. Soft balayage with face-framing layers"
+                    placeholderTextColor="#7B7B8B"
+                    maxLength={120}
+                    className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-1"
+                  />
+                  <Text className="text-gray-100 font-pregular text-xs mb-4 ml-1" style={{ opacity: 0.7 }}>
+                    Leave empty to show the year and subtitle.
+                  </Text>
+                </>
+              )}
+
               <TouchableOpacity
                 onPress={handleSaveImage}
-                disabled={!editImageUri || editImageSaving}
+                disabled={!canSaveImage || editImageSaving}
                 className="rounded-xl py-4 items-center mb-3"
-                style={{ backgroundColor: editImageUri ? '#FF9C01' : '#1E1E2D' }}
+                style={{ backgroundColor: canSaveImage ? '#FF9C01' : '#1E1E2D' }}
               >
                 {editImageSaving ? (
                   <ActivityIndicator color="#161622" />
                 ) : (
-                  <Text className="font-psemibold text-base" style={{ color: editImageUri ? '#161622' : '#7B7B8B' }}>Save Image</Text>
+                  <Text className="font-psemibold text-base" style={{ color: canSaveImage ? '#161622' : '#7B7B8B' }}>
+                    {editImageShowsCaption ? 'Save' : 'Save Image'}
+                  </Text>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => { setEditImageId(null); setEditImageUri(null); }}
+                onPress={closeEditImage}
                 className="items-center py-2"
               >
                 <Text className="text-gray-100 font-pregular">Cancel</Text>
               </TouchableOpacity>
+            </ScrollView>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
     </SafeAreaView>

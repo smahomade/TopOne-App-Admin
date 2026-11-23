@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, TouchableOpacity, Image, Text, Alert, ActivityIndicator, Modal, FlatList, TextInput } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Image, Text, Alert, ActivityIndicator, Modal, FlatList, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import CategorySelector from '../../components/CategorySelector';
 import ServiceList from '../../components/ServiceList';
 import AddServiceForm from '../../components/AddServiceForm';
 import RolesModal from '../../components/RolesModal';
+import ConfirmModal from '../../components/ConfirmModal';
 import { images, icons } from '../../constants';
 import { useLocation } from '../../context/LocationContext';
+
+// An empty price is saved as no price, which customers see as
+// "Price on consultation", as on the salon's website.
+const parsePrice = (value: string) => (value.trim() === '' ? null : Number(value));
+import SalonLogo from '../../components/SalonLogo';
 
 const Services = () => {
   const { selectedLocationId, selectedLocationName, locations, setSelectedLocation } = useLocation();
@@ -20,6 +26,7 @@ const Services = () => {
   const [loading, setLoading] = useState(true);
 
   const [mainCategory, setMainCategory] = useState('Cuts');
+  const [serviceCategory, setServiceCategory] = useState('');
   const [service, setService] = useState('');
   const [price, setPrice] = useState('');
   const [role, setRole] = useState('');
@@ -34,36 +41,67 @@ const Services = () => {
   const [editRole, setEditRole] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editMainCategory, setEditMainCategory] = useState('');
+  const [editServiceCategory, setEditServiceCategory] = useState('');
   // The group being edited, so renames and duration changes apply to every
   // option in it instead of splitting it in two.
-  const [editOriginal, setEditOriginal] = useState<{ service: string; mainCategory: string } | null>(null);
+  const [editOriginal, setEditOriginal] = useState<{ service: string; mainCategory: string; serviceCategory: string | null } | null>(null);
+
+  // The "Delete this price?" / "Delete this service?" pop-ups
+  const [pendingRoleDelete, setPendingRoleDelete] = useState<{ id: string; role: string; price: number | null } | null>(null);
+  const [pendingServiceDelete, setPendingServiceDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedLocationId) {
       fetchServices();
-      setSelectedCategory('Cuts');
       setServicesData({});
     }
   }, [selectedLocationId]);
 
+  // Each location has its own categories, so fall back to its first one.
+  useEffect(() => {
+    const categories = Object.keys(servicesData);
+    if (categories.length > 0 && !categories.includes(selectedCategory)) {
+      setSelectedCategory(categories[0]);
+      setMainCategory(categories[0]);
+    }
+  }, [servicesData]);
+
   const fetchServices = async () => {
     try {
       setLoading(true);
+      // Hidden rows (is_active false) are left out, as in the customer app.
+      // sort_order keeps the website's price-list order; new services go last.
       const { data, error } = await supabase
         .from('services')
-        .select('id, main_category, service, role, price, duration')
-        .eq('location_id', selectedLocationId);
+        .select('id, main_category, service_category, service, role, price, duration, sort_order')
+        .eq('location_id', selectedLocationId)
+        .or('is_active.is.null,is_active.eq.true')
+        .order('sort_order', { ascending: true, nullsFirst: false });
 
       if (error) { console.error(error); return; }
 
       const organizedData = data.reduce((acc: Record<string, any[]>, item: any) => {
-        const { main_category, service: serviceName, role, price, duration, id } = item;
+        const { main_category, service_category, service: serviceName, role, price, duration, id, sort_order } = item;
         if (!acc[main_category]) acc[main_category] = [];
-        const existingGroup = acc[main_category].find((g: any) => g.service === serviceName);
+        // The same name can be in two sections (Ladies and Girls both have
+        // "Wash, cut & finish"), so a service is its section plus its name.
+        const existingGroup = acc[main_category].find(
+          (g: any) => g.service === serviceName && g.serviceCategory === (service_category ?? null)
+        );
         if (existingGroup) {
           existingGroup.roles.push({ role, price, id });
+          if (sort_order != null) existingGroup.sortOrder = Math.max(existingGroup.sortOrder ?? sort_order, sort_order);
         } else {
-          acc[main_category].push({ service: serviceName, mainCategory: main_category, duration, roles: [{ role, price, id }] });
+          acc[main_category].push({
+            service: serviceName,
+            mainCategory: main_category,
+            serviceCategory: service_category ?? null,
+            duration,
+            sortOrder: sort_order ?? null,
+            roles: [{ role, price, id }],
+          });
         }
         return acc;
       }, {});
@@ -82,23 +120,24 @@ const Services = () => {
   };
 
   const handleAddService = async () => {
-    if (!service || !price || !role || !duration) {
-      Alert.alert('Missing fields', 'Please fill in all fields.');
+    if (!mainCategory.trim() || !service.trim() || !role.trim()) {
+      Alert.alert('Missing fields', 'Please fill in the category, service name and role.');
       return;
     }
     try {
       setLoading(true);
       const { error } = await supabase.from('services').insert([{
-        main_category: mainCategory,
-        service,
-        price: Number(price),
-        role,
-        duration: Number(duration),
+        main_category: mainCategory.trim(),
+        service_category: serviceCategory.trim() || null,
+        service: service.trim(),
+        price: parsePrice(price),
+        role: role.trim(),
+        duration: duration.trim() ? Number(duration) : null,
         location_id: selectedLocationId,
       }]);
       if (error) { Alert.alert('Error', 'Could not add service.'); return; }
       Alert.alert('Success', 'Service added.');
-      setService(''); setPrice(''); setRole(''); setDuration('');
+      setService(''); setPrice(''); setRole(''); setDuration(''); setServiceCategory('');
       setShowAddForm(false);
       await fetchServices();
     } catch (error) {
@@ -108,41 +147,46 @@ const Services = () => {
     }
   };
 
-  const openEditRole = (roleItem: any, serviceName: string, mainCat: string, serviceDuration?: number) => {
+  const openEditRole = (roleItem: any, group: any) => {
     setEditingId(roleItem.id);
-    setEditService(serviceName);
-    setEditPrice(String(roleItem.price));
+    setEditService(group.service);
+    setEditPrice(roleItem.price == null ? '' : String(roleItem.price));
     setEditRole(roleItem.role);
-    setEditDuration(String(serviceDuration ?? ''));
-    setEditMainCategory(mainCat);
-    setEditOriginal({ service: serviceName, mainCategory: mainCat });
+    setEditDuration(String(group.duration ?? ''));
+    setEditMainCategory(group.mainCategory);
+    setEditServiceCategory(group.serviceCategory ?? '');
+    setEditOriginal({ service: group.service, mainCategory: group.mainCategory, serviceCategory: group.serviceCategory ?? null });
     setShowRolesModal(false);
     setEditModal(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editService.trim() || !editPrice || !editRole.trim()) {
-      Alert.alert('Missing fields', 'Please fill in all required fields.');
+    if (!editService.trim() || !editRole.trim()) {
+      Alert.alert('Missing fields', 'Please fill in the service name and role.');
       return;
     }
     try {
       setLoading(true);
       // This option's own fields
       const { error } = await supabase.from('services').update({
-        price: Number(editPrice),
+        price: parsePrice(editPrice),
         role: editRole.trim(),
       }).eq('id', editingId);
       if (error) { Alert.alert('Error', 'Could not save changes.'); return; }
-      // Name, category and duration are shared by every option of the service
-      const { error: groupError } = await supabase.from('services').update({
+      // Name, section and duration are shared by every option of the service
+      const groupQuery = supabase.from('services').update({
         service: editService.trim(),
         main_category: editMainCategory,
-        duration: Number(editDuration) || 0,
+        service_category: editServiceCategory.trim() || null,
+        duration: editDuration.trim() ? Number(editDuration) : null,
       })
         .eq('service', editOriginal?.service ?? editService.trim())
         .eq('main_category', editOriginal?.mainCategory ?? editMainCategory)
         .eq('location_id', selectedLocationId);
-      if (groupError) { Alert.alert('Error', 'Could not save the service name, category or duration.'); return; }
+      const { error: groupError } = editOriginal?.serviceCategory
+        ? await groupQuery.eq('service_category', editOriginal.serviceCategory)
+        : await groupQuery.is('service_category', null);
+      if (groupError) { Alert.alert('Error', 'Could not save the service name, section or duration.'); return; }
       setEditModal(false);
       await fetchServices();
     } catch (error) {
@@ -152,56 +196,74 @@ const Services = () => {
     }
   };
 
+  // Opens the "Delete this price?" pop-up; the delete runs from its red button.
   const handleDeleteRole = (roleId: string) => {
-    Alert.alert(
-      'Delete Option',
-      'Delete this price option? Customers will no longer see it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive', onPress: async () => {
-            const { error } = await supabase.from('services').delete().eq('id', roleId);
-            if (error) { Alert.alert('Error', 'Could not delete option.'); return; }
-            await fetchServices();
-            setSelectedService((prev: any) => prev ? {
-              ...prev,
-              roles: prev.roles.filter((r: any) => r.id !== roleId),
-            } : prev);
-          },
-        },
-      ]
-    );
+    const roleItem = (selectedService as any)?.roles.find((r: any) => r.id === roleId);
+    if (!roleItem) return;
+    setDeleteError(null);
+    setPendingRoleDelete(roleItem);
   };
 
-  const handleDeleteService = async (group: any) => {
-    Alert.alert(
-      'Delete Service',
-      `Delete "${group.service}" and all its options?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive', onPress: async () => {
-            const { error } = await supabase
-              .from('services')
-              .delete()
-              .eq('service', group.service)
-              .eq('main_category', group.mainCategory)
-              .eq('location_id', selectedLocationId);
-            if (error) { console.error('Error deleting service:', error); return; }
-            await fetchServices();
-          },
-        },
-      ]
-    );
+  const confirmDeleteRole = async () => {
+    if (!pendingRoleDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const { error } = await supabase.from('services').delete().eq('id', pendingRoleDelete.id);
+      if (error) { setDeleteError('Could not delete this price. Try again.'); return; }
+      const remainingRoles = ((selectedService as any)?.roles ?? []).filter((r: any) => r.id !== pendingRoleDelete.id);
+      setPendingRoleDelete(null);
+      // With its last price gone the service is gone too, so close its sheet.
+      if (remainingRoles.length === 0) setShowRolesModal(false);
+      setSelectedService((prev: any) => prev ? { ...prev, roles: remainingRoles } : prev);
+      await fetchServices();
+    } finally {
+      setDeleting(false);
+    }
   };
+
+  // Opens the "Delete this service?" pop-up; the delete runs from its red button.
+  const handleDeleteService = (group: any) => {
+    setDeleteError(null);
+    setPendingServiceDelete(group);
+  };
+
+  const confirmDeleteService = async () => {
+    const group = pendingServiceDelete;
+    if (!group) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const deleteQuery = supabase
+        .from('services')
+        .delete()
+        .eq('service', group.service)
+        .eq('main_category', group.mainCategory)
+        .eq('location_id', selectedLocationId);
+      // Only this section's copy: Ladies and Girls can share a name.
+      const { error } = group.serviceCategory
+        ? await deleteQuery.eq('service_category', group.serviceCategory)
+        : await deleteQuery.is('service_category', null);
+      if (error) { setDeleteError('Could not delete this service. Try again.'); return; }
+      setPendingServiceDelete(null);
+      await fetchServices();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const formatRolePrice = (price: number | null) => (price == null ? 'Price on consultation' : `£${price}`);
 
   const handleAddRole = async (group: any, newRole: string, newPrice: string) => {
     const { data: inserted, error } = await supabase.from('services').insert([{
       main_category: group.mainCategory,
+      service_category: group.serviceCategory ?? null,
       service: group.service,
       role: newRole,
-      price: Number(newPrice),
-      duration: group.duration ?? 0,
+      price: parsePrice(newPrice),
+      duration: group.duration ?? null,
+      // Right after the service's other options in the list.
+      sort_order: group.sortOrder != null ? group.sortOrder + 1 : null,
       location_id: selectedLocationId,
     }]).select('id').single();
     if (error) { Alert.alert('Error', 'Could not add option.'); return; }
@@ -210,7 +272,7 @@ const Services = () => {
     // the real id, or the new option can't be edited or deleted until reopened.
     setSelectedService((prev: any) => prev ? {
       ...prev,
-      roles: [...prev.roles, { role: newRole, price: Number(newPrice), id: inserted.id }],
+      roles: [...prev.roles, { role: newRole, price: parsePrice(newPrice), id: inserted.id }],
     } : prev);
   };
 
@@ -220,8 +282,7 @@ const Services = () => {
 
         {/* Header */}
         <View className="items-center pt-6 pb-4 px-4">
-          <Image
-            source={images.logoTopOneWhite}
+          <SalonLogo
             style={{ width: 200, height: 80 }}
             resizeMode="contain"
           />
@@ -325,6 +386,9 @@ const Services = () => {
             mainCategory={mainCategory}
             setMainCategory={setMainCategory}
             existingCategories={Object.keys(servicesData)}
+            serviceCategory={serviceCategory}
+            setServiceCategory={setServiceCategory}
+            existingSections={[...new Set((servicesData[mainCategory] ?? []).map((g: any) => g.serviceCategory).filter(Boolean))] as string[]}
             service={service}
             price={price}
             role={role}
@@ -346,15 +410,66 @@ const Services = () => {
           handleDeleteRole={handleDeleteRole}
           handleEditRole={openEditRole}
           handleAddRole={handleAddRole}
+        >
+          {/* Inside the sheet's own Modal, so it shows on top of the sheet. */}
+          <ConfirmModal
+            visible={!!pendingRoleDelete}
+            title="Delete this price?"
+            message={
+              (selectedService as any)?.roles.length === 1
+                ? `It's the only price for "${(selectedService as any)?.service}", so the service will be removed from the menu too.`
+                : `"${pendingRoleDelete?.role} · ${formatRolePrice(pendingRoleDelete?.price ?? null)}" will be removed from "${(selectedService as any)?.service}". Customers won't see it any more.`
+            }
+            confirmText="Delete price"
+            cancelText="Keep it"
+            loadingText="Deleting ..."
+            isLoading={deleting}
+            errorText={deleteError}
+            onConfirm={() => void confirmDeleteRole()}
+            onCancel={() => setPendingRoleDelete(null)}
+          />
+        </RolesModal>
+
+        <ConfirmModal
+          visible={!!pendingServiceDelete}
+          title="Delete this service?"
+          message={
+            pendingServiceDelete
+              ? `"${pendingServiceDelete.service}"${pendingServiceDelete.serviceCategory ? ` (${pendingServiceDelete.serviceCategory})` : ''} and its ${pendingServiceDelete.roles.length} ${pendingServiceDelete.roles.length === 1 ? 'price' : 'prices'} will be removed. Customers won't see it any more.`
+              : ''
+          }
+          confirmText="Delete service"
+          cancelText="Keep it"
+          loadingText="Deleting ..."
+          isLoading={deleting}
+          errorText={deleteError}
+          onConfirm={() => void confirmDeleteService()}
+          onCancel={() => setPendingServiceDelete(null)}
         />
 
         {/* Edit Service Modal */}
         <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
-          <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          {/* Scrolls and moves up for the keyboard, so every field can be reached. */}
+          <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+          >
             <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
               <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
               <Text className="text-white font-psemibold text-xl mb-4">Edit Service</Text>
 
+              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Section (e.g. Ladies, Gents, Face)</Text>
+              <TextInput
+                value={editServiceCategory}
+                onChangeText={setEditServiceCategory}
+                placeholder="Section (optional)"
+                placeholderTextColor="#7B7B8B"
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              />
               <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Service name</Text>
               <TextInput
                 value={editService}
@@ -372,7 +487,7 @@ const Services = () => {
                 keyboardType="numeric"
                 className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
               />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Price (£)</Text>
+              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Price (£) · empty shows "Price on consultation"</Text>
               <TextInput
                 value={editPrice}
                 onChangeText={setEditPrice}
@@ -405,7 +520,8 @@ const Services = () => {
                 <Text className="text-gray-100 font-pregular">Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
+          </KeyboardAvoidingView>
         </Modal>
       </ScrollView>
     </SafeAreaView>
