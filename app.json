@@ -46,6 +46,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "dd1cb6af-da2d-4f18-a965-c76aa92c4c77"
+      }
+    },
+    "owner": "linax"
   }
 }
