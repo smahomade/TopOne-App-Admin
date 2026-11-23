@@ -119,7 +119,9 @@ const Collections = () => {
       const { data, error } = await supabase
         .from('collections')
         .select('id, year, title, subtitle, category, image_url, sort_order, show_year, show_captions, caption')
-        .order('year', { ascending: false });
+        .order('year', { ascending: false })
+        // Same order inside a bundle as the customer app, so the cover matches.
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       setEntries(data ?? []);
@@ -438,14 +440,17 @@ const Collections = () => {
       <View style={styles.yearBundleOverlay} />
       <View style={styles.yearBundleContent}>
         <Text style={styles.yearBundleTitle}>{item.title || item.year}</Text>
-        {item.show_year !== false && !!item.year && (
+        {/* Not repeated when the bundle is named after its year ("2021"). */}
+        {item.show_year !== false && !!item.year && String(item.year) !== (item.title || '').trim() && (
           <Text style={styles.yearBundleSubtitle}>{item.year}</Text>
         )}
         {!!item.subtitle && (
           <Text style={styles.yearBundleSubtitle}>{item.subtitle}</Text>
         )}
-        <Text style={styles.yearBundleMeta}>{item.entries.length} images</Text>
-        <Text style={styles.yearBundleHint}>Tap to open this bundle</Text>
+        <Text style={styles.yearBundleMeta}>
+          {item.entries.length} {item.entries.length === 1 ? 'image' : 'images'}
+          <Text style={styles.yearBundleHint}>  ·  Tap to open</Text>
+        </Text>
       </View>
       <TouchableOpacity
         onPress={() => openEditBundle(item)}
@@ -515,9 +520,13 @@ const Collections = () => {
             </TouchableOpacity>
             <View className="flex-1">
               <Text className="text-white font-psemibold text-2xl">{detailGroup?.title || detailGroup?.year}</Text>
-              {(detailGroup?.year || detailGroup?.subtitle) ? (
+              {detailGroup ? (
                 <Text className="text-gray-100 font-pregular text-sm" numberOfLines={1}>
-                  {[detailGroup?.year, detailGroup?.subtitle].filter(Boolean).join(' · ')}
+                  {[
+                    String(detailGroup.year ?? '') !== (detailGroup.title || '').trim() ? detailGroup.year : null,
+                    detailGroup.subtitle,
+                    `${detailGroup.entries.length} ${detailGroup.entries.length === 1 ? 'image' : 'images'}`,
+                  ].filter(Boolean).join(' · ')}
                 </Text>
               ) : null}
             </View>

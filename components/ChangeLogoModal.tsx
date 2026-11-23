@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { LOGO_SETTING_KEY, setSalonLogoUrl, useSalonLogo, useSalonLogoUrl } from '../lib/salonLogo';
@@ -130,14 +130,17 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
-        <View className="w-full rounded-2xl bg-black-100 p-6">
+        {/* Capped and scrollable: with a new image chosen, the warning and
+            extra buttons don't fit on a small phone otherwise. */}
+        <View className="w-full rounded-2xl bg-black-100" style={{ maxHeight: '90%' }}>
+        <ScrollView contentContainerStyle={{ padding: 20 }}>
           <Text className="text-center text-xl text-white font-psemibold">Change logo</Text>
-          <Text className="mt-2 text-center text-sm text-gray-100 font-pregular">
-            The logo shows at the top of the staff and customer apps.
+          <Text className="mt-1 text-center text-sm text-gray-100 font-pregular">
+            Shown at the top of the staff and customer apps.
           </Text>
 
           {/* Shown on the app's own dark background, as customers will see it. */}
-          <View className="mt-5 rounded-xl px-4 py-4" style={{ backgroundColor: '#161622', height: 120 }}>
+          <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: '#161622', height: 100 }}>
             <Image
               source={chosen ? { uri: chosen.uri } : currentLogo}
               style={{ width: '100%', height: '100%' }}
@@ -157,13 +160,13 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
           <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(142, 209, 252, 0.08)' }}>
             <Text className="text-sm text-white font-psemibold">For the best result</Text>
             {[
-              `About ${BEST_WIDTH} × ${BEST_HEIGHT} px: a wide logo, roughly 2.3 times as wide as it is tall`,
-              'A PNG with a see-through background',
-              'A white or light logo, so it stands out on the dark screens',
+              `About ${BEST_WIDTH} × ${BEST_HEIGHT} px, a wide shape`,
+              'PNG with a see-through background',
+              'White or light, to stand out on the dark screens',
             ].map((tip) => (
-              <View key={tip} className="mt-1.5 flex-row items-start">
-                <Text className="mr-2 text-sm text-secondary font-pregular">•</Text>
-                <Text className="flex-1 text-sm leading-5 text-gray-100 font-pregular">{tip}</Text>
+              <View key={tip} className="mt-1 flex-row items-start">
+                <Text className="mr-2 text-xs text-secondary font-pregular">•</Text>
+                <Text className="flex-1 text-xs leading-5 text-gray-100 font-pregular">{tip}</Text>
               </View>
             ))}
           </View>
@@ -209,6 +212,7 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
           <TouchableOpacity onPress={onClose} disabled={saving} className="mt-1 items-center py-2">
             <Text className="text-gray-100 font-pregular">Cancel</Text>
           </TouchableOpacity>
+        </ScrollView>
         </View>
       </View>
     </Modal>

@@ -281,12 +281,13 @@ const Services = () => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* Header */}
-        <View className="items-center pt-6 pb-4 px-4">
+        {/* Kept compact so the services start in the top half of a small phone. */}
+        <View className="items-center pt-4 pb-3 px-4">
           <SalonLogo
-            style={{ width: 200, height: 80 }}
+            style={{ width: 150, height: 60 }}
             resizeMode="contain"
           />
-          <Text className="text-white font-psemibold text-xl mt-3">TopOne Salon</Text>
+          <Text className="text-white font-psemibold text-xl mt-2">TopOne Salon</Text>
           <TouchableOpacity
             onPress={() => setLocationPickerVisible(true)}
             className="flex-row items-center mt-1"

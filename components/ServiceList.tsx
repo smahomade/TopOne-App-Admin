@@ -22,23 +22,20 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
             {group.serviceCategory}
           </Text>
         ) : null}
-        <View
-          className="bg-black-100 rounded-2xl p-4 mb-3 flex-row justify-between items-center"
-        >
-          {/* Service info */}
-          <View className="flex-1">
-            <Text className="text-white font-psemibold text-base" numberOfLines={1}>
-              {group.service}
-            </Text>
-            {group.duration ? (
-              <Text className="text-gray-100 font-pregular text-xs mt-0.5">
-                {group.duration} mins
+        <View className="bg-black-100 rounded-2xl p-4 mb-3">
+          {/* The whole name, on as many lines as it needs: cut to one line,
+              "Wash, cut & finish (longer/thicker)" lost the part that matters. */}
+          <Text className="text-white font-psemibold text-base">
+            {group.service}
+          </Text>
+
+          <View className="flex-row items-center justify-between mt-2">
+            <Text className="flex-1 text-gray-100 font-pregular text-xs mr-2">
+              {group.duration ? `${group.duration} mins · ` : ''}
+              <Text className="text-secondary font-psemibold">
+                {group.roles.length} {group.roles.length === 1 ? 'option' : 'options'}
               </Text>
-            ) : null}
-            <Text className="text-secondary font-psemibold text-xs mt-1">
-              {group.roles.length} {group.roles.length === 1 ? 'option' : 'options'}
             </Text>
-          </View>
 
           {/* Actions */}
           <View className="flex-row items-center gap-2">
@@ -55,6 +52,7 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
             >
               <Text className="text-red-400 font-psemibold text-xs">Delete</Text>
             </TouchableOpacity>
+          </View>
           </View>
         </View>
         </React.Fragment>
