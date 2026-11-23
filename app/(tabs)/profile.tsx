@@ -7,6 +7,7 @@ import { StatusBar, View, Image } from 'react-native'
 import { images } from '../../constants'
 import { Session } from '@supabase/supabase-js'
 import { useNavigation } from 'expo-router'
+import SalonLogo from '../../components/SalonLogo';
 
 export default function App() {
 
@@ -27,8 +28,7 @@ export default function App() {
     <>
     <View style={{ flex: 1, backgroundColor: '#161622' }}>
       <View style={{ alignItems: 'center', paddingTop: 52, paddingBottom: 12 }}>
-        <Image
-          source={images.logoTopOneWhite}
+        <SalonLogo
           style={{ width: 160, height: 64 }}
           resizeMode="contain"
         />

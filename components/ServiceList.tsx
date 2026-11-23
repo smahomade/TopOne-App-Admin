@@ -15,8 +15,14 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
   return (
     <View className="px-4 mt-2">
       {items.map((group, index) => (
+        <React.Fragment key={index}>
+        {/* A heading starts each section (Ladies, Gents, Face…), as on the price list. */}
+        {group.serviceCategory && items[index - 1]?.serviceCategory !== group.serviceCategory ? (
+          <Text className={`text-secondary font-psemibold text-xs uppercase tracking-widest mb-2 ${index > 0 ? 'mt-3' : ''}`}>
+            {group.serviceCategory}
+          </Text>
+        ) : null}
         <View
-          key={index}
           className="bg-black-100 rounded-2xl p-4 mb-3 flex-row justify-between items-center"
         >
           {/* Service info */}
@@ -51,6 +57,7 @@ const ServiceList = ({ servicesData, selectedCategory, handleDetails, handleDele
             </TouchableOpacity>
           </View>
         </View>
+        </React.Fragment>
       ))}
     </View>
   );

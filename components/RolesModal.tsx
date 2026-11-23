@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 
-type RoleItem = { id: string | null; role: string; price: number; };
-type ServiceGroup = { service: string; mainCategory: string; duration?: number; roles: RoleItem[]; };
+type RoleItem = { id: string | null; role: string; price: number | null; };
+type ServiceGroup = { service: string; mainCategory: string; serviceCategory?: string | null; duration?: number; sortOrder?: number | null; roles: RoleItem[]; };
 
 const RolesModal = ({
   selectedService,
@@ -11,12 +11,15 @@ const RolesModal = ({
   handleDeleteRole,
   handleEditRole,
   handleAddRole,
+  children,
 }: {
+  // Shown inside this sheet's Modal, e.g. its "Delete this price?" pop-up.
+  children?: React.ReactNode;
   selectedService: ServiceGroup | null;
   showRolesModal: boolean;
   setShowRolesModal: (v: boolean) => void;
   handleDeleteRole: (id: string) => void;
-  handleEditRole: (roleItem: RoleItem, service: string, mainCategory: string, duration?: number) => void;
+  handleEditRole: (roleItem: RoleItem, group: ServiceGroup) => void;
   handleAddRole: (group: ServiceGroup, role: string, price: string) => void;
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -24,7 +27,8 @@ const RolesModal = ({
   const [newPrice, setNewPrice] = useState('');
 
   const submitAdd = async () => {
-    if (!newRole.trim() || !newPrice.trim()) return;
+    // An empty price is fine: customers see "Price on consultation".
+    if (!newRole.trim()) return;
     if (!selectedService) return;
     await handleAddRole(selectedService, newRole.trim(), newPrice);
     setNewRole('');
@@ -46,6 +50,9 @@ const RolesModal = ({
           <Text className="text-white font-psemibold text-xl mb-1">
             {selectedService?.service}
           </Text>
+          {selectedService?.serviceCategory ? (
+            <Text className="text-secondary font-pregular text-xs mb-1">{selectedService.serviceCategory}</Text>
+          ) : null}
           {selectedService?.duration ? (
             <Text className="text-gray-100 font-pregular text-xs mb-5">
               {selectedService.duration} mins
@@ -60,11 +67,13 @@ const RolesModal = ({
               >
                 <View>
                   <Text className="text-white font-psemibold text-sm">{roleItem.role}</Text>
-                  <Text className="text-secondary font-pregular text-sm mt-0.5">£{roleItem.price}</Text>
+                  <Text className="text-secondary font-pregular text-sm mt-0.5">
+                    {roleItem.price == null ? 'Price on consultation' : `£${roleItem.price}`}
+                  </Text>
                 </View>
                 <View className="flex-row gap-2">
                   <TouchableOpacity
-                    onPress={() => handleEditRole(roleItem, selectedService.service, selectedService.mainCategory, selectedService.duration)}
+                    onPress={() => handleEditRole(roleItem, selectedService)}
                     className="bg-secondary rounded-lg px-3 py-2"
                   >
                     <Text className="text-primary font-psemibold text-xs">Edit</Text>
@@ -99,7 +108,7 @@ const RolesModal = ({
               <TextInput
                 value={newPrice}
                 onChangeText={setNewPrice}
-                placeholder="Price (£)"
+                placeholder="Price (£), or empty for consultation"
                 placeholderTextColor="#7B7B8B"
                 keyboardType="numeric"
                 className="bg-black-100 text-white font-pregular rounded-xl px-4 py-3 mb-3"
@@ -121,6 +130,7 @@ const RolesModal = ({
           </TouchableOpacity>
         </View>
       </View>
+      {children}
     </Modal>
   );
 };

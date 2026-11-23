@@ -17,6 +17,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocation } from '../../context/LocationContext';
+import SalonLogo from '../../components/SalonLogo';
+import ChangeLogoModal from '../../components/ChangeLogoModal';
 
 type Banner = {
   id: string;
@@ -33,6 +35,7 @@ const STORAGE_BUCKET = 'images';
 const Home = () => {
   const { selectedLocationId, selectedLocationName, locations, setSelectedLocation, refreshLocations } = useLocation();
   const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+  const [logoModalVisible, setLogoModalVisible] = useState(false);
 
   const [userName, setUserName] = useState('Guest');
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -414,11 +417,21 @@ const Home = () => {
                 <Text className="text-white font-psemibold text-2xl">{userName}</Text>
               </View>
 
-              <Image
-                source={images.logoTopOneWhite}
-                style={{ width: 160, height: 64 }}
-                resizeMode="contain"
-              />
+              {/* Tapping the logo opens a pop-up to change it in both apps. */}
+              <TouchableOpacity
+                onPress={() => setLogoModalVisible(true)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Change the logo"
+              >
+                <SalonLogo style={{ width: 160, height: 64 }} />
+                <View
+                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-black-100 items-center justify-center"
+                  style={{ borderWidth: 1, borderColor: '#232533' }}
+                >
+                  <Image source={icons.upload} style={{ width: 11, height: 11 }} tintColor="#8ED1FC" resizeMode="contain" />
+                </View>
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
@@ -827,6 +840,8 @@ const Home = () => {
           </View>
         </View>
       </Modal>
+
+      <ChangeLogoModal visible={logoModalVisible} onClose={() => setLogoModalVisible(false)} />
     </SafeAreaView>
   );
 };

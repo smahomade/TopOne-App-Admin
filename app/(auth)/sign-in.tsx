@@ -6,6 +6,7 @@ import FormField from '../../components/FormField'
 import CustomButton from '../../components/CustomButton'
 import { router } from 'expo-router'
 import { supabase } from '../../lib/supabase'
+import SalonLogo from '../../components/SalonLogo';
 
 
 const SignIn = () => {
@@ -84,8 +85,7 @@ const SignIn = () => {
 
           {/* Logo */}
           <View className="items-center mb-10">
-            <Image
-              source={images.logoTopOneWhite}
+            <SalonLogo
               resizeMode="contain"
               style={{ width: 160, height: 64 }}
             />
