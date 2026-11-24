@@ -212,10 +212,12 @@ const Collections = () => {
 
   const uploadImage = async (localUri: string, year: string) => {    const fileName = `${year}/${Date.now()}.jpg`;
     const response = await fetch(localUri);
-    const blob = await response.blob();
+    // The photo's bytes, as Supabase asks for on phones: a Blob upload can
+    // arrive empty or fail outright from an iPhone.
+    const fileData = await response.arrayBuffer();
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      .upload(fileName, fileData, { contentType: 'image/jpeg', upsert: true });
     if (error) throw error;
     return supabase.storage.from(BUCKET).getPublicUrl(fileName).data.publicUrl;
   };
@@ -462,6 +464,310 @@ const Collections = () => {
     </TouchableOpacity>
   );
 
+  // An iPhone only shows a pop-up on top of another one when it is rendered
+  // inside it; as a sibling it silently never appears and the screen seems
+  // frozen. So "Choose from uploads" sits inside the Add and Edit image
+  // sheets, and those sit inside the open bundle when one is open.
+  const bucketPickerModal = (
+    <Modal visible={bucketModal} transparent animationType="slide">
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+        <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
+          <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+          <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
+
+          {loadingBucket ? (
+            <View className="py-16 items-center">
+              <ActivityIndicator size="large" color="#8ED1FC" />
+            </View>
+          ) : bucketImages.length === 0 ? (
+            <View className="py-16 items-center">
+              <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="flex-row flex-wrap">
+                {bucketImages.map((img) => (
+                  <TouchableOpacity
+                    key={img.name}
+                    onPress={() => {
+                      bucketOnPick?.(img.url);
+                      setBucketModal(false);
+                    }}
+                    activeOpacity={0.8}
+                    style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
+                    className="rounded-xl overflow-hidden"
+                  >
+                    <Image
+                      source={{ uri: img.url }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
+
+          <TouchableOpacity
+            onPress={() => setBucketModal(false)}
+            className="items-center py-3 mt-3"
+          >
+            <Text className="text-gray-100 font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const addImageModal = (
+    <Modal visible={addModal} transparent animationType="slide">
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+        >
+          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+            <Text className="text-white font-psemibold text-xl mb-4">Add Collection Image</Text>
+
+            {/* Image picker */}
+            <TouchableOpacity
+              onPress={() => pickImage(setNewImageUri)}
+              className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+              style={{ height: 160 }}
+            >
+              {newImageUri ? (
+                <>
+                  <Image source={{ uri: newImageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                    <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
+                    <Text className="text-white font-pregular text-sm">Tap to change</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#8ED1FC" resizeMode="contain" />
+                  <Text className="text-secondary font-pregular text-sm">Tap to select image</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => openBucketPicker((url) => setNewImageUri(url))}
+              className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+            >
+              <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
+              <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+            </TouchableOpacity>
+
+            {/* Collection selector */}
+            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Collection</Text>
+            {lockedTitle ? (
+              <View className="bg-black-200 rounded-xl px-4 py-3 mb-3 flex-row items-center">
+                <Text className="text-white font-psemibold text-sm flex-1">{lockedTitle}</Text>
+                <Text className="text-gray-100 font-pregular text-xs">Auto-selected</Text>
+              </View>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+                  <View className="flex-row">
+                    {yearGroups.map((g) => {
+                      const label = g.title || g.year;
+                      const selected = newTitle === g.title && !!g.title && !showNewYearInput;
+                      return (
+                        <TouchableOpacity
+                          key={label}
+                          onPress={() => { setNewTitle(g.title); setNewYear(g.year ?? ''); setShowNewYearInput(false); }}
+                          className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
+                          style={{ backgroundColor: selected ? '#FF9C01' : '#1E1E2D' }}
+                        >
+                          <Text
+                            className="font-psemibold text-sm"
+                            style={{ color: selected ? '#161622' : '#CDCDE0' }}
+                          >
+                            {label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                    <TouchableOpacity
+                      onPress={() => { setShowNewYearInput(true); setNewTitle(''); setNewYear(''); }}
+                      className="py-2 px-4 rounded-xl items-center justify-center"
+                      style={{ backgroundColor: showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
+                    >
+                      <Text
+                        className="font-psemibold text-sm"
+                        style={{ color: showNewYearInput ? '#161622' : '#CDCDE0' }}
+                      >
+                        + New
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+                {showNewYearInput && (
+                  <>
+                    <TextInput
+                      value={newTitle}
+                      onChangeText={setNewTitle}
+                      placeholder="Collection title"
+                      placeholderTextColor="#7B7B8B"
+                      className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                    />
+                    <TextInput
+                      value={newYear}
+                      onChangeText={setNewYear}
+                      placeholder="Year (e.g. 2025)"
+                      placeholderTextColor="#7B7B8B"
+                      keyboardType="numeric"
+                      className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                    />
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Subtitle */}
+            <TextInput
+              value={newSubtitle}
+              onChangeText={setNewSubtitle}
+              placeholder="Subtitle (optional)"
+              placeholderTextColor="#7B7B8B"
+              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+            />
+
+            {/* Category toggle */}
+            <View className="flex-row mb-4">
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => setNewCategory(cat)}
+                  className="flex-1 py-3 rounded-xl items-center mr-2 last:mr-0"
+                  style={{ backgroundColor: newCategory === cat ? '#FF9C01' : '#1E1E2D' }}
+                >
+                  <Text
+                    className="font-psemibold text-sm"
+                    style={{ color: newCategory === cat ? '#161622' : '#CDCDE0' }}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={handleAdd}
+              disabled={adding}
+              className="bg-secondary rounded-xl py-4 items-center mb-3"
+            >
+              {adding ? (
+                <ActivityIndicator color="#161622" />
+              ) : (
+                <Text className="text-primary font-psemibold text-base">Add to Collection</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                setAddModal(false);
+                setNewYear(''); setNewTitle(''); setNewSubtitle('');
+                setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null); setLockedTitle(null);
+              }}
+              className="items-center py-2"
+            >
+              <Text className="text-gray-100 font-pregular">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+      {bucketPickerModal}
+    </Modal>
+  );
+
+  const editImageModal = editImageId === null ? null : (
+    <Modal visible={true} transparent animationType="slide" onRequestClose={closeEditImage}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+        <View className="bg-black-100 rounded-t-2xl" style={{ maxHeight: '92%' }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
+        >
+          <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+          <Text className="text-white font-psemibold text-xl mb-4">
+            {editImageShowsCaption ? 'Edit Image' : 'Replace Image'}
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => pickImage(setEditImageUri)}
+            className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+            style={{ height: 160 }}
+          >
+            <Image
+              source={{ uri: editImageUri ?? editingImageEntry?.image_url }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+            <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+              <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
+              <Text className="text-white font-pregular text-sm">{editImageUri ? 'Tap to change' : 'Tap to replace'}</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => openBucketPicker((url) => setEditImageUri(url))}
+            className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+          >
+            <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
+            <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+          </TouchableOpacity>
+
+          {editImageShowsCaption && (
+            <>
+              <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Subtext</Text>
+              <TextInput
+                value={editImageCaption}
+                onChangeText={setEditImageCaption}
+                placeholder="e.g. Soft balayage with face-framing layers"
+                placeholderTextColor="#7B7B8B"
+                maxLength={120}
+                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-1"
+              />
+              <Text className="text-gray-100 font-pregular text-xs mb-4 ml-1" style={{ opacity: 0.7 }}>
+                Leave empty to show the year and subtitle.
+              </Text>
+            </>
+          )}
+
+          <TouchableOpacity
+            onPress={handleSaveImage}
+            disabled={!canSaveImage || editImageSaving}
+            className="rounded-xl py-4 items-center mb-3"
+            style={{ backgroundColor: canSaveImage ? '#FF9C01' : '#1E1E2D' }}
+          >
+            {editImageSaving ? (
+              <ActivityIndicator color="#161622" />
+            ) : (
+              <Text className="font-psemibold text-base" style={{ color: canSaveImage ? '#161622' : '#7B7B8B' }}>
+                {editImageShowsCaption ? 'Save' : 'Save Image'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={closeEditImage}
+            className="items-center py-2"
+          >
+            <Text className="text-gray-100 font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </ScrollView>
+        </View>
+      </View>
+      </KeyboardAvoidingView>
+      {bucketPickerModal}
+    </Modal>
+  );
+
   return (
     <SafeAreaView className="bg-primary flex-1">
       {loading ? (
@@ -611,220 +917,13 @@ const Collections = () => {
             onConfirm={() => void confirmRemoveImage()}
             onCancel={closeRemoveImage}
           />
+          {addImageModal}
+          {editImageModal}
         </SafeAreaView>
       </Modal>
 
-      {/* ─── Add Image Modal ──────────────────────────────────── */}
-      <Modal visible={addModal} transparent animationType="slide">
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-          >
-            <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-              <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-              <Text className="text-white font-psemibold text-xl mb-4">Add Collection Image</Text>
-
-              {/* Image picker */}
-              <TouchableOpacity
-                onPress={() => pickImage(setNewImageUri)}
-                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
-                style={{ height: 160 }}
-              >
-                {newImageUri ? (
-                  <>
-                    <Image source={{ uri: newImageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
-                      <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                      <Text className="text-white font-pregular text-sm">Tap to change</Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#8ED1FC" resizeMode="contain" />
-                    <Text className="text-secondary font-pregular text-sm">Tap to select image</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => openBucketPicker((url) => setNewImageUri(url))}
-                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
-              >
-                <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
-              </TouchableOpacity>
-
-              {/* Collection selector */}
-              <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Collection</Text>
-              {lockedTitle ? (
-                <View className="bg-black-200 rounded-xl px-4 py-3 mb-3 flex-row items-center">
-                  <Text className="text-white font-psemibold text-sm flex-1">{lockedTitle}</Text>
-                  <Text className="text-gray-100 font-pregular text-xs">Auto-selected</Text>
-                </View>
-              ) : (
-                <>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
-                    <View className="flex-row">
-                      {yearGroups.map((g) => {
-                        const label = g.title || g.year;
-                        const selected = newTitle === g.title && !!g.title && !showNewYearInput;
-                        return (
-                          <TouchableOpacity
-                            key={label}
-                            onPress={() => { setNewTitle(g.title); setNewYear(g.year ?? ''); setShowNewYearInput(false); }}
-                            className="py-2 px-4 rounded-xl mr-2 items-center justify-center"
-                            style={{ backgroundColor: selected ? '#FF9C01' : '#1E1E2D' }}
-                          >
-                            <Text
-                              className="font-psemibold text-sm"
-                              style={{ color: selected ? '#161622' : '#CDCDE0' }}
-                            >
-                              {label}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                      <TouchableOpacity
-                        onPress={() => { setShowNewYearInput(true); setNewTitle(''); setNewYear(''); }}
-                        className="py-2 px-4 rounded-xl items-center justify-center"
-                        style={{ backgroundColor: showNewYearInput ? '#FF9C01' : '#1E1E2D' }}
-                      >
-                        <Text
-                          className="font-psemibold text-sm"
-                          style={{ color: showNewYearInput ? '#161622' : '#CDCDE0' }}
-                        >
-                          + New
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </ScrollView>
-                  {showNewYearInput && (
-                    <>
-                      <TextInput
-                        value={newTitle}
-                        onChangeText={setNewTitle}
-                        placeholder="Collection title"
-                        placeholderTextColor="#7B7B8B"
-                        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-                      />
-                      <TextInput
-                        value={newYear}
-                        onChangeText={setNewYear}
-                        placeholder="Year (e.g. 2025)"
-                        placeholderTextColor="#7B7B8B"
-                        keyboardType="numeric"
-                        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-                      />
-                    </>
-                  )}
-                </>
-              )}
-
-              {/* Subtitle */}
-              <TextInput
-                value={newSubtitle}
-                onChangeText={setNewSubtitle}
-                placeholder="Subtitle (optional)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-
-              {/* Category toggle */}
-              <View className="flex-row mb-4">
-                {CATEGORIES.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    onPress={() => setNewCategory(cat)}
-                    className="flex-1 py-3 rounded-xl items-center mr-2 last:mr-0"
-                    style={{ backgroundColor: newCategory === cat ? '#FF9C01' : '#1E1E2D' }}
-                  >
-                    <Text
-                      className="font-psemibold text-sm"
-                      style={{ color: newCategory === cat ? '#161622' : '#CDCDE0' }}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                onPress={handleAdd}
-                disabled={adding}
-                className="bg-secondary rounded-xl py-4 items-center mb-3"
-              >
-                {adding ? (
-                  <ActivityIndicator color="#161622" />
-                ) : (
-                  <Text className="text-primary font-psemibold text-base">Add to Collection</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setAddModal(false);
-                  setNewYear(''); setNewTitle(''); setNewSubtitle('');
-                  setNewCategory('mens'); setNewImageUri(null); setShowNewYearInput(false); setLockedYear(null); setLockedTitle(null);
-                }}
-                className="items-center py-2"
-              >
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      {/* Bucket Picker Modal */}
-      <Modal visible={bucketModal} transparent animationType="slide">
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
-
-            {loadingBucket ? (
-              <View className="py-16 items-center">
-                <ActivityIndicator size="large" color="#8ED1FC" />
-              </View>
-            ) : bucketImages.length === 0 ? (
-              <View className="py-16 items-center">
-                <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View className="flex-row flex-wrap">
-                  {bucketImages.map((img) => (
-                    <TouchableOpacity
-                      key={img.name}
-                      onPress={() => {
-                        bucketOnPick?.(img.url);
-                        setBucketModal(false);
-                      }}
-                      activeOpacity={0.8}
-                      style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
-                      className="rounded-xl overflow-hidden"
-                    >
-                      <Image
-                        source={{ uri: img.url }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-
-            <TouchableOpacity
-              onPress={() => setBucketModal(false)}
-              className="items-center py-3 mt-3"
-            >
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Opened from the + at the top. With a bundle open, it's inside that bundle's Modal. */}
+      {detailGroup ? null : addImageModal}
 
       {/* ─── Edit Bundle Modal ─────────────────────────────── */}
       <Modal visible={editBundleModal} transparent animationType="slide" onRequestClose={() => setEditBundleModal(false)}>
@@ -972,90 +1071,6 @@ const Collections = () => {
         />
       </Modal>
 
-      {/* ─── Edit Image Modal ──────────────────────────────── */}
-      {editImageId !== null && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={closeEditImage}>
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <View className="bg-black-100 rounded-t-2xl" style={{ maxHeight: '92%' }}>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
-            >
-              <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-              <Text className="text-white font-psemibold text-xl mb-4">
-                {editImageShowsCaption ? 'Edit Image' : 'Replace Image'}
-              </Text>
-
-              <TouchableOpacity
-                onPress={() => pickImage(setEditImageUri)}
-                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
-                style={{ height: 160 }}
-              >
-                <Image
-                  source={{ uri: editImageUri ?? editingImageEntry?.image_url }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-                <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-                  <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                  <Text className="text-white font-pregular text-sm">{editImageUri ? 'Tap to change' : 'Tap to replace'}</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => openBucketPicker((url) => setEditImageUri(url))}
-                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
-              >
-                <Image source={icons.scissors} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
-              </TouchableOpacity>
-
-              {editImageShowsCaption && (
-                <>
-                  <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">Subtext</Text>
-                  <TextInput
-                    value={editImageCaption}
-                    onChangeText={setEditImageCaption}
-                    placeholder="e.g. Soft balayage with face-framing layers"
-                    placeholderTextColor="#7B7B8B"
-                    maxLength={120}
-                    className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-1"
-                  />
-                  <Text className="text-gray-100 font-pregular text-xs mb-4 ml-1" style={{ opacity: 0.7 }}>
-                    Leave empty to show the year and subtitle.
-                  </Text>
-                </>
-              )}
-
-              <TouchableOpacity
-                onPress={handleSaveImage}
-                disabled={!canSaveImage || editImageSaving}
-                className="rounded-xl py-4 items-center mb-3"
-                style={{ backgroundColor: canSaveImage ? '#FF9C01' : '#1E1E2D' }}
-              >
-                {editImageSaving ? (
-                  <ActivityIndicator color="#161622" />
-                ) : (
-                  <Text className="font-psemibold text-base" style={{ color: canSaveImage ? '#161622' : '#7B7B8B' }}>
-                    {editImageShowsCaption ? 'Save' : 'Save Image'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={closeEditImage}
-                className="items-center py-2"
-              >
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
-              </TouchableOpacity>
-            </ScrollView>
-            </View>
-          </View>
-          </KeyboardAvoidingView>
-        </Modal>
-      )}
     </SafeAreaView>
   );
 };

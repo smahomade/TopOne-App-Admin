@@ -156,7 +156,7 @@ const Services = () => {
     setEditMainCategory(group.mainCategory);
     setEditServiceCategory(group.serviceCategory ?? '');
     setEditOriginal({ service: group.service, mainCategory: group.mainCategory, serviceCategory: group.serviceCategory ?? null });
-    setShowRolesModal(false);
+    // The options sheet stays open underneath; Cancel goes back to it.
     setEditModal(true);
   };
 
@@ -187,7 +187,9 @@ const Services = () => {
         ? await groupQuery.eq('service_category', editOriginal.serviceCategory)
         : await groupQuery.is('service_category', null);
       if (groupError) { Alert.alert('Error', 'Could not save the service name, section or duration.'); return; }
+      // Both sheets close: the options sheet would show the old values.
       setEditModal(false);
+      setShowRolesModal(false);
       await fetchServices();
     } catch (error) {
       console.error('Error saving edit:', error);
@@ -275,6 +277,86 @@ const Services = () => {
       roles: [...prev.roles, { role: newRole, price: parsePrice(newPrice), id: inserted.id }],
     } : prev);
   };
+
+  // The edit sheet opens on top of the options sheet, inside its Modal: an
+  // iPhone drops a pop-up that opens while another is still closing.
+  const editServiceModal = (
+    <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
+      {/* Scrolls and moves up for the keyboard, so every field can be reached. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+      >
+        <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
+          <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+          <Text className="text-white font-psemibold text-xl mb-4">Edit Service</Text>
+
+          <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Section (e.g. Ladies, Gents, Face)</Text>
+          <TextInput
+            value={editServiceCategory}
+            onChangeText={setEditServiceCategory}
+            placeholder="Section (optional)"
+            placeholderTextColor="#7B7B8B"
+            className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Service name</Text>
+          <TextInput
+            value={editService}
+            onChangeText={setEditService}
+            placeholder="Service name"
+            placeholderTextColor="#7B7B8B"
+            className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Duration (minutes)</Text>
+          <TextInput
+            value={editDuration}
+            onChangeText={setEditDuration}
+            placeholder="Duration (minutes)"
+            placeholderTextColor="#7B7B8B"
+            keyboardType="numeric"
+            className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Price (£) · empty shows "Price on consultation"</Text>
+          <TextInput
+            value={editPrice}
+            onChangeText={setEditPrice}
+            placeholder="Price"
+            placeholderTextColor="#7B7B8B"
+            keyboardType="numeric"
+            className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Role</Text>
+          <TextInput
+            value={editRole}
+            onChangeText={setEditRole}
+            placeholder="Role (e.g. Senior Stylist)"
+            placeholderTextColor="#7B7B8B"
+            className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+          />
+
+          <TouchableOpacity
+            onPress={handleSaveEdit}
+            disabled={loading}
+            className="bg-secondary rounded-xl py-4 items-center mb-3"
+          >
+            {loading ? (
+              <ActivityIndicator color="#161622" />
+            ) : (
+              <Text className="text-primary font-psemibold text-base">Save Changes</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
+            <Text className="text-gray-100 font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 
   return (
     <SafeAreaView className="bg-primary flex-1">
@@ -429,6 +511,7 @@ const Services = () => {
             onConfirm={() => void confirmDeleteRole()}
             onCancel={() => setPendingRoleDelete(null)}
           />
+          {editServiceModal}
         </RolesModal>
 
         <ConfirmModal
@@ -448,82 +531,6 @@ const Services = () => {
           onCancel={() => setPendingServiceDelete(null)}
         />
 
-        {/* Edit Service Modal */}
-        <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
-          {/* Scrolls and moves up for the keyboard, so every field can be reached. */}
-          <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-          >
-            <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-              <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-              <Text className="text-white font-psemibold text-xl mb-4">Edit Service</Text>
-
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Section (e.g. Ladies, Gents, Face)</Text>
-              <TextInput
-                value={editServiceCategory}
-                onChangeText={setEditServiceCategory}
-                placeholder="Section (optional)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Service name</Text>
-              <TextInput
-                value={editService}
-                onChangeText={setEditService}
-                placeholder="Service name"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Duration (minutes)</Text>
-              <TextInput
-                value={editDuration}
-                onChangeText={setEditDuration}
-                placeholder="Duration (minutes)"
-                placeholderTextColor="#7B7B8B"
-                keyboardType="numeric"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Price (£) · empty shows "Price on consultation"</Text>
-              <TextInput
-                value={editPrice}
-                onChangeText={setEditPrice}
-                placeholder="Price"
-                placeholderTextColor="#7B7B8B"
-                keyboardType="numeric"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Role</Text>
-              <TextInput
-                value={editRole}
-                onChangeText={setEditRole}
-                placeholder="Role (e.g. Senior Stylist)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-              />
-
-              <TouchableOpacity
-                onPress={handleSaveEdit}
-                disabled={loading}
-                className="bg-secondary rounded-xl py-4 items-center mb-3"
-              >
-                {loading ? (
-                  <ActivityIndicator color="#161622" />
-                ) : (
-                  <Text className="text-primary font-psemibold text-base">Save Changes</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-          </KeyboardAvoidingView>
-        </Modal>
       </ScrollView>
     </SafeAreaView>
   );

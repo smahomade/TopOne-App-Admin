@@ -59,6 +59,9 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 1,
+        // An iPhone photo can be HEIC, which not every phone can show: ask
+        // for a JPEG copy of those. PNGs stay PNG.
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
       const asset = result.canceled ? null : result.assets?.[0];
 
@@ -85,11 +88,13 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
       const extension = chosen.mimeType === 'image/png' ? 'png' : chosen.mimeType === 'image/webp' ? 'webp' : 'jpg';
       const fileName = `logo/logo-${Date.now()}.${extension}`;
       const response = await fetch(chosen.uri);
-      const blob = await response.blob();
+      // The photo's bytes, as Supabase asks for on phones: a Blob upload can
+      // arrive empty or fail outright from an iPhone.
+      const fileData = await response.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from('images')
-        .upload(fileName, blob, { contentType: chosen.mimeType, upsert: true });
+        .upload(fileName, fileData, { contentType: chosen.mimeType, upsert: true });
       if (uploadError) throw uploadError;
 
       const publicUrl = supabase.storage.from('images').getPublicUrl(fileName).data.publicUrl;

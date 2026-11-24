@@ -212,11 +212,13 @@ const Home = () => {
     const fileName = `${filePrefix}-${Date.now()}.${fileExt}`;
 
     const response = await fetch(localUri);
-    const blob = await response.blob();
+    // The photo's bytes, as Supabase asks for on phones: a Blob upload can
+    // arrive empty or fail outright from an iPhone.
+    const fileData = await response.arrayBuffer();
 
     const { error: uploadError } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(fileName, blob, {
+      .upload(fileName, fileData, {
         contentType: 'image/jpeg',
         upsert: true,
       });
@@ -399,6 +401,59 @@ const Home = () => {
         </Text>
       </View>
     </TouchableOpacity>
+  );
+
+  // Rendered inside the Add and Edit sheets' own Modals: an iPhone only shows
+  // a pop-up on top of another one when it sits inside it.
+  const bucketPickerModal = (
+    <Modal visible={bucketModal} transparent animationType="slide">
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+        <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
+          <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
+          <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
+
+          {loadingBucket ? (
+            <View className="py-16 items-center">
+              <ActivityIndicator size="large" color="#8ED1FC" />
+            </View>
+          ) : bucketImages.length === 0 ? (
+            <View className="py-16 items-center">
+              <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="flex-row flex-wrap">
+                {bucketImages.map((img) => (
+                  <TouchableOpacity
+                    key={img.name}
+                    onPress={() => {
+                      bucketOnPick?.(img.url);
+                      setBucketModal(false);
+                    }}
+                    activeOpacity={0.8}
+                    style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
+                    className="rounded-xl overflow-hidden"
+                  >
+                    <Image
+                      source={{ uri: img.url }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
+
+          <TouchableOpacity
+            onPress={() => setBucketModal(false)}
+            className="items-center py-3 mt-3"
+          >
+            <Text className="text-gray-100 font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
@@ -599,6 +654,7 @@ const Home = () => {
             </TouchableOpacity>
           </View>
         </View>
+        {bucketPickerModal}
       </Modal>
 
       <Modal visible={editModal} transparent animationType="slide">
@@ -733,6 +789,7 @@ const Home = () => {
             </TouchableOpacity>
           </View>
         </View>
+        {bucketPickerModal}
       </Modal>
       {/* Location picker modal */}
       <Modal
@@ -787,56 +844,6 @@ const Home = () => {
               style={{ padding: 16, alignItems: 'center' }}
             >
               <Text style={{ color: '#7B7B8B', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Bucket image picker modal */}
-      <Modal visible={bucketModal} transparent animationType="slide">
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
-
-            {loadingBucket ? (
-              <View className="py-16 items-center">
-                <ActivityIndicator size="large" color="#8ED1FC" />
-              </View>
-            ) : bucketImages.length === 0 ? (
-              <View className="py-16 items-center">
-                <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View className="flex-row flex-wrap">
-                  {bucketImages.map((img) => (
-                    <TouchableOpacity
-                      key={img.name}
-                      onPress={() => {
-                        bucketOnPick?.(img.url);
-                        setBucketModal(false);
-                      }}
-                      activeOpacity={0.8}
-                      style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
-                      className="rounded-xl overflow-hidden"
-                    >
-                      <Image
-                        source={{ uri: img.url }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-
-            <TouchableOpacity
-              onPress={() => setBucketModal(false)}
-              className="items-center py-3 mt-3"
-            >
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
