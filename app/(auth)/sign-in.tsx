@@ -75,7 +75,7 @@ const SignIn = () => {
   };
 
   return (
-    <SafeAreaView className="bg-primary flex-1">
+    <SafeAreaView className="bg-cream flex-1">
       {/* Shrinks the form to the space above the keyboard, so the password
           field and Sign In button can be scrolled to instead of hiding
           behind it. Same setup as the chat in book.tsx. */}
@@ -92,10 +92,10 @@ const SignIn = () => {
           </View>
 
           {/* Title */}
-          <Text className="text-3xl text-white font-psemibold text-center mb-2">
+          <Text className="text-3xl text-ink font-display text-center mb-2">
             Admin Login
           </Text>
-          <Text className="text-gray-100 font-pregular text-center mb-10">
+          <Text className="text-muted font-pregular text-center mb-10">
             TopOne Salon — Richmond
           </Text>
 

@@ -368,19 +368,19 @@ const Home = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.45)',
+          backgroundColor: 'rgba(26, 24, 23, 0.45)',
           borderRadius: 16,
         }}
       />
 
-      <View className="absolute top-3 right-3 bg-black-200 px-2 py-1 rounded-lg flex-row items-center">
+      <View className="absolute top-3 right-3 bg-field px-2 py-1 rounded-lg flex-row items-center">
         <Image
           source={icons.upload}
           className="w-3 h-3 mr-1"
-          tintColor="#8ED1FC"
+          tintColor="#1A1817"
           resizeMode="contain"
         />
-        <Text className="text-secondary font-pregular text-xs">Edit</Text>
+        <Text className="text-ink font-pregular text-xs">Edit</Text>
       </View>
 
       <View
@@ -388,13 +388,13 @@ const Home = () => {
         style={{ alignItems: item.text_align === 'right' ? 'flex-end' : 'flex-start' }}
       >
         <Text
-          className="text-white font-psemibold text-xl"
+          className="text-white font-display text-[22px]"
           style={{ textAlign: item.text_align ?? 'left' }}
         >
           {item.title}
         </Text>
         <Text
-          className="text-gray-100 font-pregular text-sm mt-0.5"
+          className="text-[#E8E2DA] font-pregular text-sm mt-0.5"
           style={{ textAlign: item.text_align ?? 'left' }}
         >
           {item.description}
@@ -408,17 +408,17 @@ const Home = () => {
   const bucketPickerModal = (
     <Modal visible={bucketModal} transparent animationType="slide">
       <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-        <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
-          <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-          <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
+        <View className="bg-card rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
+          <View className="w-10 h-1 bg-field rounded-full self-center mb-5" />
+          <Text className="text-ink font-psemibold text-xl mb-4">Choose from uploads</Text>
 
           {loadingBucket ? (
             <View className="py-16 items-center">
-              <ActivityIndicator size="large" color="#8ED1FC" />
+              <ActivityIndicator size="large" color="#1A1817" />
             </View>
           ) : bucketImages.length === 0 ? (
             <View className="py-16 items-center">
-              <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
+              <Text className="text-muted font-pregular text-sm">No images found in bucket.</Text>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -449,7 +449,7 @@ const Home = () => {
             onPress={() => setBucketModal(false)}
             className="items-center py-3 mt-3"
           >
-            <Text className="text-gray-100 font-pregular">Cancel</Text>
+            <Text className="text-muted font-pregular">Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -457,7 +457,7 @@ const Home = () => {
   );
 
   return (
-    <SafeAreaView className="bg-primary flex-1">
+    <SafeAreaView className="bg-cream flex-1">
       <FlatList
         data={banners}
         keyExtractor={(item) => item.id}
@@ -468,8 +468,8 @@ const Home = () => {
           <View className="px-4 pt-6 pb-4">
             <View className="flex-row justify-between items-center mb-5">
               <View>
-                <Text className="text-gray-100 font-pregular text-sm">Welcome back,</Text>
-                <Text className="text-white font-psemibold text-2xl">{userName}</Text>
+                <Text className="text-muted font-pregular text-sm">Welcome back,</Text>
+                <Text className="text-ink font-display text-[28px]">{userName}</Text>
               </View>
 
               {/* Tapping the logo opens a pop-up to change it in both apps. */}
@@ -482,46 +482,46 @@ const Home = () => {
                 <SalonLogo style={{ width: 150, height: 64 }} />
                 {/* Just below the logo's corner, so it doesn't cover "SALON". */}
                 <View
-                  className="absolute w-6 h-6 rounded-full bg-black-100 items-center justify-center"
-                  style={{ borderWidth: 1, borderColor: '#232533', right: 0, bottom: -18 }}
+                  className="absolute w-6 h-6 rounded-full bg-card items-center justify-center"
+                  style={{ borderWidth: 1, borderColor: '#E4DDD3', right: 0, bottom: -18 }}
                 >
-                  <Image source={icons.upload} style={{ width: 11, height: 11 }} tintColor="#8ED1FC" resizeMode="contain" />
+                  <Image source={icons.upload} style={{ width: 11, height: 11 }} tintColor="#1A1817" resizeMode="contain" />
                 </View>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
               onPress={() => setLocationPickerVisible(true)}
-              className="flex-row items-center bg-black-100 self-start px-4 py-2 rounded-full mb-5"
+              className="flex-row items-center bg-card self-start px-4 py-2 rounded-full mb-5"
             >
               <Image
                 source={icons.rightArrow}
                 className="w-3 h-3 mr-2"
-                tintColor="#8ED1FC"
+                tintColor="#1A1817"
                 resizeMode="contain"
               />
-              <Text className="text-secondary font-psemibold text-sm">{selectedLocationName || 'Select Location'}</Text>
+              <Text className="text-ink font-psemibold text-sm">{selectedLocationName || 'Select Location'}</Text>
             </TouchableOpacity>
 
-            <Text className="text-white font-psemibold text-xl mb-3">What's on</Text>
+            <Text className="text-ink font-display text-[22px] mb-3">What's on</Text>
 
             <TouchableOpacity
               onPress={openAdd}
               activeOpacity={0.8}
-              className="bg-secondary rounded-2xl h-16 items-center justify-center flex-row mb-3"
+              className="bg-ink rounded-2xl h-16 items-center justify-center flex-row mb-3"
             >
               <View
                 className="w-8 h-8 rounded-full items-center justify-center mr-2"
-                style={{ backgroundColor: 'rgba(22,22,34,0.2)' }}
+                style={{ backgroundColor: 'rgba(244, 241, 236, 0.18)' }}
               >
-                <Text className="text-primary font-psemibold text-xl">+</Text>
+                <Text className="text-cream font-psemibold text-xl">+</Text>
               </View>
-              <Text className="text-primary font-psemibold text-base">Add New Banner</Text>
+              <Text className="text-cream font-psemibold text-base">Add New Banner</Text>
             </TouchableOpacity>
 
             {loadingBanners && (
               <View className="py-10 items-center">
-                <ActivityIndicator size="large" color="#8ED1FC" />
+                <ActivityIndicator size="large" color="#1A1817" />
               </View>
             )}
           </View>
@@ -530,13 +530,13 @@ const Home = () => {
 
       <Modal visible={addModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Add Banner</Text>
+          <View className="bg-card rounded-t-2xl px-5 pt-5 pb-8">
+            <View className="w-10 h-1 bg-field rounded-full self-center mb-5" />
+            <Text className="text-ink font-psemibold text-xl mb-4">Add Banner</Text>
 
             <TouchableOpacity
               onPress={() => pickImage(setNewImageUri)}
-              className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+              className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-field"
               style={{ height: 140 }}
             >
               {newImageUri ? (
@@ -556,7 +556,7 @@ const Home = () => {
                       tintColor="#fff"
                       resizeMode="contain"
                     />
-                    <Text className="text-white font-pregular text-sm">Tap to change</Text>
+                    <Text className="text-ink font-pregular text-sm">Tap to change</Text>
                   </View>
                 </>
               ) : (
@@ -564,10 +564,10 @@ const Home = () => {
                   <Image
                     source={icons.upload}
                     className="w-8 h-8 mb-2"
-                    tintColor="#8ED1FC"
+                    tintColor="#1A1817"
                     resizeMode="contain"
                   />
-                  <Text className="text-secondary font-pregular text-sm">
+                  <Text className="text-ink font-pregular text-sm">
                     Tap to upload image
                   </Text>
                 </>
@@ -576,37 +576,37 @@ const Home = () => {
 
             <TouchableOpacity
               onPress={() => openBucketPicker((url) => setNewImageUri(url))}
-              className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+              className="bg-field rounded-xl py-3 items-center mb-4 flex-row justify-center"
             >
-              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-              <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#1A1817" resizeMode="contain" />
+              <Text className="text-ink font-pregular text-sm">Choose from uploads</Text>
             </TouchableOpacity>
 
             <TextInput
               value={newTitle}
               onChangeText={setNewTitle}
               placeholder="Banner title"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              placeholderTextColor="#8A8178"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             <TextInput
               value={newDesc}
               onChangeText={setNewDesc}
               placeholder="Short description (shown on banner)"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              placeholderTextColor="#8A8178"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             <TextInput
               value={newLongDesc}
               onChangeText={setNewLongDesc}
               placeholder="Long description (shown when tapped in guest app)"
-              placeholderTextColor="#7B7B8B"
+              placeholderTextColor="#8A8178"
               multiline
               numberOfLines={4}
               style={{ textAlignVertical: 'top' }}
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             {/* Text alignment toggle */}
@@ -614,11 +614,11 @@ const Home = () => {
               <TouchableOpacity
                 onPress={() => setNewAlign('left')}
                 className="flex-1 py-3 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: newAlign === 'left' ? '#FF9C01' : '#1E1E2D' }}
+                style={{ backgroundColor: newAlign === 'left' ? '#1A1817' : '#EDE8E1' }}
               >
                 <Text
                   className="font-psemibold text-sm"
-                  style={{ color: newAlign === 'left' ? '#161622' : '#CDCDE0' }}
+                  style={{ color: newAlign === 'left' ? '#F4F1EC' : '#6B635A' }}
                 >
                   Text Left
                 </Text>
@@ -626,11 +626,11 @@ const Home = () => {
               <TouchableOpacity
                 onPress={() => setNewAlign('right')}
                 className="flex-1 py-3 rounded-xl items-center"
-                style={{ backgroundColor: newAlign === 'right' ? '#FF9C01' : '#1E1E2D' }}
+                style={{ backgroundColor: newAlign === 'right' ? '#1A1817' : '#EDE8E1' }}
               >
                 <Text
                   className="font-psemibold text-sm"
-                  style={{ color: newAlign === 'right' ? '#161622' : '#CDCDE0' }}
+                  style={{ color: newAlign === 'right' ? '#F4F1EC' : '#6B635A' }}
                 >
                   Text Right
                 </Text>
@@ -640,17 +640,17 @@ const Home = () => {
             <TouchableOpacity
               onPress={addBanner}
               disabled={adding}
-              className="bg-secondary rounded-xl py-4 items-center mb-3"
+              className="bg-ink rounded-xl py-4 items-center mb-3"
             >
               {adding ? (
-                <ActivityIndicator color="#161622" />
+                <ActivityIndicator color="#F4F1EC" />
               ) : (
-                <Text className="text-primary font-psemibold text-base">Upload Banner</Text>
+                <Text className="text-cream font-psemibold text-base">Upload Banner</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setAddModal(false)} className="items-center py-2">
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
+              <Text className="text-muted font-pregular">Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -659,9 +659,9 @@ const Home = () => {
 
       <Modal visible={editModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Edit Banner</Text>
+          <View className="bg-card rounded-t-2xl px-5 pt-5 pb-8">
+            <View className="w-10 h-1 bg-field rounded-full self-center mb-5" />
+            <Text className="text-ink font-psemibold text-xl mb-4">Edit Banner</Text>
 
             <TouchableOpacity
               onPress={() => pickImage(setEditImageUri)}
@@ -689,55 +689,55 @@ const Home = () => {
                   tintColor="#fff"
                   resizeMode="contain"
                 />
-                <Text className="text-white font-pregular text-sm">Tap to change image</Text>
+                <Text className="text-ink font-pregular text-sm">Tap to change image</Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => openBucketPicker((url) => setEditImageUri(url))}
-              className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+              className="bg-field rounded-xl py-3 items-center mb-4 flex-row justify-center"
             >
-              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-              <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+              <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#1A1817" resizeMode="contain" />
+              <Text className="text-ink font-pregular text-sm">Choose from uploads</Text>
             </TouchableOpacity>
 
             <TextInput
               value={editTitle}
               onChangeText={setEditTitle}
               placeholder="Banner title"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              placeholderTextColor="#8A8178"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             <TextInput
               value={editDesc}
               onChangeText={setEditDesc}
               placeholder="Short description (shown on banner)"
-              placeholderTextColor="#7B7B8B"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              placeholderTextColor="#8A8178"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             <TextInput
               value={editLongDesc}
               onChangeText={setEditLongDesc}
               placeholder="Long description (shown when tapped in guest app)"
-              placeholderTextColor="#7B7B8B"
+              placeholderTextColor="#8A8178"
               multiline
               numberOfLines={4}
               style={{ textAlignVertical: 'top' }}
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
-            <Text className="text-gray-100 font-pregular text-xs mb-2 ml-1">
+            <Text className="text-muted font-pregular text-xs mb-2 ml-1">
               Sort order — lower number appears first (current: {editing?.sort_order})
             </Text>
             <TextInput
               value={editSortOrder}
               onChangeText={setEditSortOrder}
               placeholder={`Current: ${editing?.sort_order ?? ''}`}
-              placeholderTextColor="#7B7B8B"
+              placeholderTextColor="#8A8178"
               keyboardType="numeric"
-              className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+              className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
             />
 
             {/* Text alignment toggle */}
@@ -745,11 +745,11 @@ const Home = () => {
               <TouchableOpacity
                 onPress={() => setEditAlign('left')}
                 className="flex-1 py-3 rounded-xl mr-2 items-center"
-                style={{ backgroundColor: editAlign === 'left' ? '#FF9C01' : '#1E1E2D' }}
+                style={{ backgroundColor: editAlign === 'left' ? '#1A1817' : '#EDE8E1' }}
               >
                 <Text
                   className="font-psemibold text-sm"
-                  style={{ color: editAlign === 'left' ? '#161622' : '#CDCDE0' }}
+                  style={{ color: editAlign === 'left' ? '#F4F1EC' : '#6B635A' }}
                 >
                   Text Left
                 </Text>
@@ -757,11 +757,11 @@ const Home = () => {
               <TouchableOpacity
                 onPress={() => setEditAlign('right')}
                 className="flex-1 py-3 rounded-xl items-center"
-                style={{ backgroundColor: editAlign === 'right' ? '#FF9C01' : '#1E1E2D' }}
+                style={{ backgroundColor: editAlign === 'right' ? '#1A1817' : '#EDE8E1' }}
               >
                 <Text
                   className="font-psemibold text-sm"
-                  style={{ color: editAlign === 'right' ? '#161622' : '#CDCDE0' }}
+                  style={{ color: editAlign === 'right' ? '#F4F1EC' : '#6B635A' }}
                 >
                   Text Right
                 </Text>
@@ -771,21 +771,21 @@ const Home = () => {
             <TouchableOpacity
               onPress={saveChanges}
               disabled={saving}
-              className="bg-secondary rounded-xl py-4 items-center mb-3"
+              className="bg-ink rounded-xl py-4 items-center mb-3"
             >
               {saving ? (
-                <ActivityIndicator color="#161622" />
+                <ActivityIndicator color="#F4F1EC" />
               ) : (
-                <Text className="text-primary font-psemibold text-base">Save Changes</Text>
+                <Text className="text-cream font-psemibold text-base">Save Changes</Text>
               )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={deleteBanner} className="items-center py-2 mb-1">
-              <Text className="text-red-500 font-pregular">Delete Banner</Text>
+              <Text className="text-danger font-pregular">Delete Banner</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
+              <Text className="text-muted font-pregular">Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -799,9 +799,9 @@ const Home = () => {
         onRequestClose={() => setLocationPickerVisible(false)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-          <View style={{ backgroundColor: '#1E1E2D', borderRadius: 16, width: '100%', overflow: 'hidden' }}>
-            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
-              <Text style={{ color: '#fff', fontFamily: 'Poppins-SemiBold', fontSize: 16 }}>Select Location</Text>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, width: '100%', overflow: 'hidden' }}>
+            <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
+              <Text style={{ color: '#1A1817', fontFamily: 'DMSans-SemiBold', fontSize: 16 }}>Select Location</Text>
             </View>
             <FlatList
               data={locations}
@@ -815,17 +815,17 @@ const Home = () => {
                   style={{
                     padding: 18,
                     borderBottomWidth: 1,
-                    borderBottomColor: '#232533',
+                    borderBottomColor: '#E4DDD3',
                     flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                   }}
                 >
-                  <Text style={{ color: item.id === selectedLocationId ? '#FFA001' : '#CDCDE0', fontFamily: 'Poppins-SemiBold', fontSize: 14 }}>
+                  <Text style={{ color: item.id === selectedLocationId ? '#1A1817' : '#6B635A', fontFamily: 'DMSans-SemiBold', fontSize: 14 }}>
                     {item.name}
                   </Text>
                   {item.id === selectedLocationId && (
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFA001' }} />
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1A1817' }} />
                   )}
                 </TouchableOpacity>
               )}
@@ -835,15 +835,15 @@ const Home = () => {
                 setLocationPickerVisible(false);
                 router.push('/(extras)/location');
               }}
-              style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#232533' }}
+              style={{ padding: 16, alignItems: 'center', borderTopWidth: 1, borderTopColor: '#E4DDD3' }}
             >
-              <Text style={{ color: '#8ED1FC', fontFamily: 'Poppins-SemiBold', fontSize: 14 }}>Manage Locations</Text>
+              <Text style={{ color: '#1A1817', fontFamily: 'DMSans-SemiBold', fontSize: 14 }}>Manage Locations</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setLocationPickerVisible(false)}
               style={{ padding: 16, alignItems: 'center' }}
             >
-              <Text style={{ color: '#7B7B8B', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Cancel</Text>
+              <Text style={{ color: '#8A8178', fontFamily: 'DMSans-Regular', fontSize: 14 }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

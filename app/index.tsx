@@ -64,7 +64,7 @@ export default function Index() {
 
   return (
     
-    <SafeAreaView className="bg-primary h-full ">
+    <SafeAreaView className="bg-cream h-full ">
 
       {/* Full-screen background photo (React Native has deprecated ImageBackground) */}
       <View style={{ flex: 1 }}>
@@ -75,12 +75,13 @@ export default function Index() {
         resizeMode="cover"
       />
       {/* Overlay or fade effect */}
-      <View style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)', flex: 1 }}>
+      <View style={{ backgroundColor: 'rgba(26, 24, 23, 0.4)', flex: 1 }}>
       <ScrollView contentContainerStyle ={{ height: '100%'}}>
 
         {/* Top Logo Image - Positioned at the top */}
         <View className="w-full items-center justify-start pt-10">
-          <SalonLogo 
+          <SalonLogo
+            onPhoto
             style={{ width: 200, height: 85 }}
             resizeMode="contain"
           />
@@ -91,10 +92,10 @@ export default function Index() {
 
           
           <View className="relative mt-5">
-            <Text className="text-7xl text-white font-bold text-center">
+            <Text className="text-7xl text-white font-display text-center">
               ADMIN 
             </Text>
-            <Text className="text-5xl text-secondary-100 font-bold text-center">
+            <Text className="text-5xl text-cream font-display text-center">
               TOP ONE
             </Text>
         </View>
@@ -108,14 +109,17 @@ export default function Index() {
             containerStyles="w-full mt-7"
             textStyles=""
             isLoading={loading}
+            backgroundColor="#F4F1EC"
+            textColor="#1A1817"
           />
       </View>
       </ScrollView>
       
-      {/* Adds light to the status bar (top bar with battery, wifi and time) <StatusBar backgroundColor="#161622" style="light"/> */}
+      {/* Adds light to the status bar (top bar with battery, wifi and time) <StatusBar backgroundColor="#F4F1EC" style="light"/> */}
       </View>
       </View>
-      <StatusBar style='light'/>
+      {/* The bar above the photo is cream, so its icons are dark */}
+      <StatusBar style='dark'/>
     </SafeAreaView>
   );
 }

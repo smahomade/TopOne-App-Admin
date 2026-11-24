@@ -54,5 +54,5 @@ export function useSalonLogoUrl() {
 
 export function useSalonLogo(): ImageSourcePropType {
   const url = useSalonLogoUrl();
-  return url ? { uri: url } : images.logoTopOneWhite;
+  return url ? { uri: url } : images.logoTopOne;
 }

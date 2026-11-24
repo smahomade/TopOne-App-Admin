@@ -502,33 +502,33 @@ const Book = () => {
           {/* Card */}
           <View
             style={{
-              backgroundColor: '#1A1A2E',
+              backgroundColor: '#FFFFFF',
               borderRadius: 16,
               borderWidth: 1.5,
-              borderColor: '#8ED1FC',
+              borderColor: '#1A1817',
               overflow: 'hidden',
             }}
           >
             {/* Coloured header bar */}
-            <View style={{ backgroundColor: '#8ED1FC', paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Image source={icons.scissors} style={{ width: 16, height: 16 }} tintColor="#161622" resizeMode="contain" />
-              <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+            <View style={{ backgroundColor: '#1A1817', paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Image source={icons.scissors} style={{ width: 16, height: 16 }} tintColor="#F4F1EC" resizeMode="contain" />
+              <Text style={{ color: '#F4F1EC', fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' }}>
                 New Booking Request
               </Text>
             </View>
             {/* Body */}
             <View style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600', lineHeight: 24 }}>
+              <Text style={{ color: '#1A1817', fontSize: 16, fontWeight: '600', lineHeight: 24 }}>
                 {mainLine}
               </Text>
               {!!note && (
-                <Text style={{ color: '#CDCDE0', fontSize: 14, marginTop: 10, lineHeight: 20 }}>
+                <Text style={{ color: '#6B635A', fontSize: 14, marginTop: 10, lineHeight: 20 }}>
                   {note}
                 </Text>
               )}
             </View>
           </View>
-          <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 4, marginHorizontal: 4 }}>
+          <Text style={{ color: '#8A8178', fontSize: 11, marginTop: 4, marginHorizontal: 4 }}>
             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
@@ -543,7 +543,7 @@ const Book = () => {
       >
         <View
           style={{
-            backgroundColor: isMine ? '#8ED1FC' : '#232533',
+            backgroundColor: isMine ? '#1A1817' : '#FFFFFF',
             borderRadius: 18,
             borderBottomRightRadius: isMine ? 4 : 18,
             borderBottomLeftRadius: isMine ? 18 : 4,
@@ -551,11 +551,11 @@ const Book = () => {
             paddingVertical: 10,
           }}
         >
-          <Text style={{ color: isMine ? '#161622' : '#FFFFFF', fontSize: 15, lineHeight: 21 }}>
+          <Text style={{ color: isMine ? '#F4F1EC' : '#1A1817', fontSize: 15, lineHeight: 21 }}>
             {msg.content}
           </Text>
         </View>
-        <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 2, marginHorizontal: 4, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
+        <Text style={{ color: '#8A8178', fontSize: 11, marginTop: 2, marginHorizontal: 4, alignSelf: isMine ? 'flex-end' : 'flex-start' }}>
           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
@@ -569,18 +569,18 @@ const Book = () => {
       style={{
         flexDirection: 'row', alignItems: 'flex-end',
         paddingHorizontal: 12, paddingVertical: 10,
-        borderTopWidth: 1, borderTopColor: '#232533',
-        backgroundColor: '#161622', gap: 8,
+        borderTopWidth: 1, borderTopColor: '#E4DDD3',
+        backgroundColor: '#F4F1EC', gap: 8,
       }}
     >
       <TextInput
         value={inputText}
         onChangeText={setInputText}
         placeholder="Type a message..."
-        placeholderTextColor="#7B7B8B"
+        placeholderTextColor="#8A8178"
         multiline
         style={{
-          flex: 1, backgroundColor: '#232533', color: '#FFFFFF',
+          flex: 1, backgroundColor: '#FFFFFF', color: '#1A1817', borderWidth: 1, borderColor: '#E4DDD3',
           borderRadius: 20, paddingHorizontal: 16,
           paddingTop: 10, paddingBottom: 10, fontSize: 15, maxHeight: 120,
         }}
@@ -592,18 +592,18 @@ const Book = () => {
         disabled={sending || !inputText.trim()}
         style={{
           width: 44, height: 44, borderRadius: 22,
-          backgroundColor: inputText.trim() ? '#8ED1FC' : '#232533',
+          backgroundColor: inputText.trim() ? '#1A1817' : '#E4DDD3',
           alignItems: 'center', justifyContent: 'center',
         }}
         activeOpacity={0.8}
       >
         {sending ? (
-          <ActivityIndicator size="small" color="#161622" />
+          <ActivityIndicator size="small" color="#F4F1EC" />
         ) : (
           <Image
             source={icons.upload}
             style={{ width: 20, height: 20, transform: [{ rotate: '90deg' }] }}
-            tintColor={inputText.trim() ? '#161622' : '#7B7B8B'}
+            tintColor={inputText.trim() ? '#F4F1EC' : '#8A8178'}
             resizeMode="contain"
           />
         )}
@@ -616,17 +616,17 @@ const Book = () => {
   const confirmModal = confirmDialog && (
     <Modal transparent animationType="fade" visible={confirmDialog.visible} onRequestClose={hideConfirm}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-        <View style={{ backgroundColor: '#1E1E2D', borderRadius: 20, padding: 28, width: '100%', borderWidth: 1, borderColor: '#2E2E42' }}>
+        <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 28, width: '100%', borderWidth: 1, borderColor: '#EDE8E1' }}>
           {/* Icon */}
-          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#2b1a1a', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#FBEAE8', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
             <Text style={{ fontSize: 24 }}>⚠️</Text>
           </View>
           {/* Title */}
-          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
+          <Text style={{ color: '#1A1817', fontSize: 18, fontWeight: '700', textAlign: 'center', marginBottom: 10 }}>
             {confirmDialog.title}
           </Text>
           {/* Body */}
-          <Text style={{ color: '#9CA3AF', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
+          <Text style={{ color: '#6B635A', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 28 }}>
             {confirmDialog.body}
           </Text>
           {/* Buttons */}
@@ -634,16 +634,16 @@ const Book = () => {
             <TouchableOpacity
               onPress={hideConfirm}
               activeOpacity={0.8}
-              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#2E2E42', alignItems: 'center' }}
+              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#EDE8E1', alignItems: 'center' }}
             >
-              <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
+              <Text style={{ color: '#1A1817', fontSize: 15, fontWeight: '600' }}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => { confirmDialog.onConfirm(); hideConfirm(); }}
               activeOpacity={0.8}
-              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#7F1D1D', alignItems: 'center', borderWidth: 1, borderColor: '#f87171' }}
+              style={{ flex: 1, paddingVertical: 13, borderRadius: 12, backgroundColor: '#E8B4AE', alignItems: 'center', borderWidth: 1, borderColor: '#B3261E' }}
             >
-              <Text style={{ color: '#FCA5A5', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
+              <Text style={{ color: '#B3261E', fontSize: 15, fontWeight: '700' }}>Confirm</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -653,16 +653,16 @@ const Book = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#8ED1FC" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#1A1817" />
       </SafeAreaView>
     );
   }
 
   if (!userId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <Text style={{ color: '#6B635A', fontSize: 16, textAlign: 'center' }}>
           Please sign in to access messages.
         </Text>
       </SafeAreaView>
@@ -672,18 +672,18 @@ const Book = () => {
   
   if (isAdmin && selectedConv) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
           <TouchableOpacity onPress={() => { setSelectedConv(null); setConvMessages([]); }} style={{ marginRight: 12 }}>
-            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#1A1817" resizeMode="contain" />
           </TouchableOpacity>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-            <Text style={{ color: '#8ED1FC', fontSize: 17, fontWeight: '600' }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E4DDD3', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+            <Text style={{ color: '#1A1817', fontSize: 17, fontWeight: '600' }}>
               {selectedConv.first_name.charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>
+            <Text style={{ color: '#1A1817', fontSize: 17, fontWeight: '600' }}>
               {selectedConv.first_name} {selectedConv.last_name}
             </Text>
             {/* The customer's number, which the salon uses to confirm bookings.
@@ -698,25 +698,25 @@ const Book = () => {
                   accessibilityLabel={`Call ${selectedConv.first_name}, ${selectedConv.phone_number}`}
                   style={{ alignSelf: 'flex-start' }}
                 >
-                  <Text style={{ color: '#8ED1FC', fontSize: 13, fontWeight: '600' }}>
+                  <Text style={{ color: '#1A1817', fontSize: 13, fontWeight: '600' }}>
                     {selectedConv.phone_number}
                   </Text>
                 </TouchableOpacity>
               ) : (
-                <Text style={{ color: '#CDCDE0', fontSize: 13 }}>{selectedConv.phone_number}</Text>
+                <Text style={{ color: '#6B635A', fontSize: 13 }}>{selectedConv.phone_number}</Text>
               )
             ) : null}
-            <Text style={{ color: '#7B7B8B', fontSize: 12 }}>
+            <Text style={{ color: '#8A8178', fontSize: 12 }}>
               Started {new Date(selectedConv.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
             </Text>
           </View>
           {selectedConv.closed_at ? (
-            <TouchableOpacity onPress={reopenConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#0f2b1a', borderWidth: 1, borderColor: '#4ade80' }}>
-              <Text style={{ color: '#4ade80', fontSize: 13, fontWeight: '600' }}>Reopen</Text>
+            <TouchableOpacity onPress={reopenConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#E6F4EA', borderWidth: 1, borderColor: '#1D7A46' }}>
+              <Text style={{ color: '#1D7A46', fontSize: 13, fontWeight: '600' }}>Reopen</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity onPress={closeConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#2b0f0f', borderWidth: 1, borderColor: '#f87171' }}>
-              <Text style={{ color: '#f87171', fontSize: 13, fontWeight: '600' }}>Close</Text>
+            <TouchableOpacity onPress={closeConversation} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: '#FBEAE8', borderWidth: 1, borderColor: '#B3261E' }}>
+              <Text style={{ color: '#B3261E', fontSize: 13, fontWeight: '600' }}>Close</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -730,14 +730,14 @@ const Book = () => {
             onContentSizeChange={() => adminListRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', paddingTop: 40 }}>
-                <Text style={{ color: '#7B7B8B', fontSize: 14 }}>No messages yet.</Text>
+                <Text style={{ color: '#8A8178', fontSize: 14 }}>No messages yet.</Text>
               </View>
             }
           />
           {selectedConv.closed_at ? (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#232533', alignItems: 'center', backgroundColor: '#161622' }}>
-              <Text style={{ color: '#f87171', fontSize: 13 }}>This conversation is closed</Text>
-              <Text style={{ color: '#7B7B8B', fontSize: 11, marginTop: 3 }}>{getDeleteCountdown(selectedConv.closed_at)}</Text>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#E4DDD3', alignItems: 'center', backgroundColor: '#F4F1EC' }}>
+              <Text style={{ color: '#B3261E', fontSize: 13 }}>This conversation is closed</Text>
+              <Text style={{ color: '#8A8178', fontSize: 11, marginTop: 3 }}>{getDeleteCountdown(selectedConv.closed_at)}</Text>
             </View>
           ) : renderInputBar(sendAdminReply)}
         </KeyboardAvoidingView>
@@ -749,36 +749,36 @@ const Book = () => {
   
   if (isAdmin) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
         <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 12 }}>
           <SalonLogo style={{ width: 160, height: 64 }} resizeMode="contain"
           />
         </View>
-        <View style={{ paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
-          <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
-          <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }}>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
+          <Text style={{ color: '#1A1817', fontSize: 28, fontFamily: 'PlayfairDisplay-SemiBold' }}>Messages</Text>
+          <Text style={{ color: '#8A8178', fontSize: 13, marginTop: 2 }}>
             {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
           </Text>
-          <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 4 }}>
+          <Text style={{ color: '#8A8178', fontSize: 12, marginTop: 4 }}>
             Messages nobody opens within 5 minutes are emailed to the salon.
           </Text>
         </View>
         {locations.length > 1 && (
-          <View style={{ height: 52, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+          <View style={{ height: 52, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }}>
               <TouchableOpacity
                 onPress={() => setFilterLocationId(null)}
-                style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === null ? '#8ED1FC' : '#232533', borderWidth: 1, borderColor: filterLocationId === null ? '#8ED1FC' : '#3a3a4a' }}
+                style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === null ? '#1A1817' : '#E4DDD3', borderWidth: 1, borderColor: filterLocationId === null ? '#1A1817' : '#D5CDC2' }}
               >
-                <Text style={{ color: filterLocationId === null ? '#161622' : '#CDCDE0', fontSize: 13, fontWeight: '600' }}>All</Text>
+                <Text style={{ color: filterLocationId === null ? '#F4F1EC' : '#6B635A', fontSize: 13, fontWeight: '600' }}>All</Text>
               </TouchableOpacity>
               {locations.map(loc => (
                 <TouchableOpacity
                   key={loc.id}
                   onPress={() => setFilterLocationId(loc.id)}
-                  style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === loc.id ? '#8ED1FC' : '#232533', borderWidth: 1, borderColor: filterLocationId === loc.id ? '#8ED1FC' : '#3a3a4a' }}
+                  style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filterLocationId === loc.id ? '#1A1817' : '#E4DDD3', borderWidth: 1, borderColor: filterLocationId === loc.id ? '#1A1817' : '#D5CDC2' }}
                 >
-                  <Text style={{ color: filterLocationId === loc.id ? '#161622' : '#CDCDE0', fontSize: 13, fontWeight: '600' }}>{loc.name}</Text>
+                  <Text style={{ color: filterLocationId === loc.id ? '#F4F1EC' : '#6B635A', fontSize: 13, fontWeight: '600' }}>{loc.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -786,11 +786,11 @@ const Book = () => {
         )}
         {loadingConvs && conversations.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator size="large" color="#8ED1FC" />
+            <ActivityIndicator size="large" color="#1A1817" />
           </View>
         ) : conversations.length === 0 ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center' }}>
+            <Text style={{ color: '#6B635A', fontSize: 16, textAlign: 'center' }}>
               No messages yet.{'\n'}Customers will appear here when they message you.
             </Text>
           </View>
@@ -804,44 +804,44 @@ const Book = () => {
               <RefreshControl
                 refreshing={loadingConvs}
                 onRefresh={fetchConversations}
-                tintColor="#8ED1FC"
-                colors={['#8ED1FC']}
+                tintColor="#1A1817"
+                colors={['#1A1817']}
               />
             }
             renderItem={({ item }) => (
               <TouchableOpacity
                 onPress={() => openConversation(item)}
                 activeOpacity={0.75}
-                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#232533' }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}
               >
-                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
-                  <Text style={{ color: '#8ED1FC', fontSize: 22, fontWeight: '700' }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#E4DDD3', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                  <Text style={{ color: '#1A1817', fontSize: 22, fontWeight: '700' }}>
                     {item.first_name.charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '700', letterSpacing: 0.2 }}>
+                  <Text style={{ color: '#1A1817', fontSize: 18, fontWeight: '700', letterSpacing: 0.2 }}>
                     {item.first_name} {item.last_name}
                   </Text>
-                  <Text style={{ color: '#8ED1FC', fontSize: 11, marginTop: 2 }}>
+                  <Text style={{ color: '#1A1817', fontSize: 11, marginTop: 2 }}>
                     {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                   </Text>
-                  <Text style={{ color: '#CDCDE0', fontSize: 14, marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
+                  <Text style={{ color: '#6B635A', fontSize: 14, marginTop: 3, lineHeight: 20 }} numberOfLines={2}>
                     {previewText(item.last_message)}
                   </Text>
                 </View>
                 {item.closed_at && (
-                  <View style={{ backgroundColor: '#2b0f0f', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3, marginLeft: 6, alignItems: 'center' }}>
-                    <Text style={{ color: '#f87171', fontSize: 11, fontWeight: '600' }}>Closed</Text>
-                    <Text style={{ color: '#7B7B8B', fontSize: 10, marginTop: 1 }}>{getDeleteCountdown(item.closed_at)}</Text>
+                  <View style={{ backgroundColor: '#FBEAE8', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 3, marginLeft: 6, alignItems: 'center' }}>
+                    <Text style={{ color: '#B3261E', fontSize: 11, fontWeight: '600' }}>Closed</Text>
+                    <Text style={{ color: '#8A8178', fontSize: 10, marginTop: 1 }}>{getDeleteCountdown(item.closed_at)}</Text>
                   </View>
                 )}
                 {item.unread_count > 0 && (
-                  <View style={{ backgroundColor: '#8ED1FC', borderRadius: 12, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginLeft: 8 }}>
-                    <Text style={{ color: '#161622', fontSize: 12, fontWeight: '700' }}>{item.unread_count}</Text>
+                  <View style={{ backgroundColor: '#1A1817', borderRadius: 12, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginLeft: 8 }}>
+                    <Text style={{ color: '#F4F1EC', fontSize: 12, fontWeight: '700' }}>{item.unread_count}</Text>
                   </View>
                 )}
-                <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#7B7B8B" resizeMode="contain" />
+                <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#8A8178" resizeMode="contain" />
               </TouchableOpacity>
             )}
           />
@@ -854,8 +854,8 @@ const Book = () => {
 
   if (activeConvId) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
           <TouchableOpacity
             onPress={() =>
               showConfirm(
@@ -866,14 +866,14 @@ const Book = () => {
             }
             style={{ marginRight: 12 }}
           >
-            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+            <Image source={icons.leftArrow} style={{ width: 22, height: 22 }} tintColor="#1A1817" resizeMode="contain" />
           </TouchableOpacity>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-            <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#E4DDD3', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+            <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#1A1817" resizeMode="contain" />
           </View>
           <View>
-            <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '600' }}>TopOne Salon</Text>
-            <Text style={{ color: '#7B7B8B', fontSize: 12 }}>Richmond</Text>
+            <Text style={{ color: '#1A1817', fontSize: 17, fontWeight: '600' }}>TopOne Salon</Text>
+            <Text style={{ color: '#8A8178', fontSize: 12 }}>Richmond</Text>
           </View>
         </View>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
@@ -887,16 +887,16 @@ const Book = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 32 }}>
-                <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+                <Text style={{ color: '#6B635A', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
                   Send your first message to{'\n'}TopOne Salon!
                 </Text>
               </View>
             }
           />
           {activeConvClosedAt ? (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#232533', alignItems: 'center', backgroundColor: '#161622' }}>
-              <Text style={{ color: '#f87171', fontSize: 13, fontWeight: '600' }}>This conversation has been closed</Text>
-              <Text style={{ color: '#7B7B8B', fontSize: 12, marginTop: 3 }}>The salon will no longer receive new messages here</Text>
+            <View style={{ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#E4DDD3', alignItems: 'center', backgroundColor: '#F4F1EC' }}>
+              <Text style={{ color: '#B3261E', fontSize: 13, fontWeight: '600' }}>This conversation has been closed</Text>
+              <Text style={{ color: '#8A8178', fontSize: 12, marginTop: 3 }}>The salon will no longer receive new messages here</Text>
             </View>
           ) : renderInputBar(sendMessage)}
         </KeyboardAvoidingView>
@@ -907,24 +907,24 @@ const Book = () => {
 
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
-        <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '600' }}>Messages</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
+        <Text style={{ color: '#1A1817', fontSize: 28, fontFamily: 'PlayfairDisplay-SemiBold' }}>Messages</Text>
       </View>
 
       <TouchableOpacity
         onPress={startNewConversation}
-        style={{ margin: 16, backgroundColor: '#8ED1FC', borderRadius: 16, height: 56, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+        style={{ margin: 16, backgroundColor: '#1A1817', borderRadius: 16, height: 56, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
         activeOpacity={0.8}
       >
-        <Image source={icons.plus} style={{ width: 20, height: 20 }} tintColor="#161622" resizeMode="contain" />
-        <Text style={{ color: '#161622', fontSize: 16, fontWeight: '600' }}>New Conversation</Text>
+        <Image source={icons.plus} style={{ width: 20, height: 20 }} tintColor="#F4F1EC" resizeMode="contain" />
+        <Text style={{ color: '#F4F1EC', fontSize: 16, fontWeight: '600' }}>New Conversation</Text>
       </TouchableOpacity>
 
       {userConversations.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-          <Image source={icons.scissors} style={{ width: 64, height: 64, marginBottom: 16, opacity: 0.4 }} tintColor="#CDCDE0" resizeMode="contain" />
-          <Text style={{ color: '#CDCDE0', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
+          <Image source={icons.scissors} style={{ width: 64, height: 64, marginBottom: 16, opacity: 0.4 }} tintColor="#6B635A" resizeMode="contain" />
+          <Text style={{ color: '#6B635A', fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
             No conversations yet.{'\n'}Tap "New Conversation" to get started.
           </Text>
         </View>
@@ -938,21 +938,21 @@ const Book = () => {
             <TouchableOpacity
               onPress={() => openUserConversation(item.conversation_id)}
               activeOpacity={0.75}
-              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#232533' }}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}
             >
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#232533', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
-                <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#8ED1FC" resizeMode="contain" />
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#E4DDD3', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                <Image source={icons.scissors} style={{ width: 22, height: 22 }} tintColor="#1A1817" resizeMode="contain" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>TopOne Salon</Text>
-                <Text style={{ color: '#8ED1FC', fontSize: 11, marginTop: 1 }}>
+                <Text style={{ color: '#1A1817', fontSize: 16, fontWeight: '600' }}>TopOne Salon</Text>
+                <Text style={{ color: '#1A1817', fontSize: 11, marginTop: 1 }}>
                   {new Date(item.started_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
-                <Text style={{ color: '#7B7B8B', fontSize: 13, marginTop: 2 }} numberOfLines={1}>
+                <Text style={{ color: '#8A8178', fontSize: 13, marginTop: 2 }} numberOfLines={1}>
                   {previewText(item.last_message)}
                 </Text>
               </View>
-              <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#7B7B8B" resizeMode="contain" />
+              <Image source={icons.rightArrow} style={{ width: 16, height: 16, marginLeft: 8 }} tintColor="#8A8178" resizeMode="contain" />
             </TouchableOpacity>
           )}
         />

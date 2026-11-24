@@ -126,13 +126,13 @@ const PhoneField = ({ value, onChangePhone, OtherStyles = '', hasError = false }
   return (
     <View style={{ marginTop: OtherStyles ? 20 : 0 }}>
       <View className="flex-row items-center">
-        <Text className="text-base font-pmedium text-gray-100">Phone Number</Text>
-        <Text className="ml-1 text-base font-psemibold text-[#FF8A8A]">*</Text>
+        <Text className="text-base font-pmedium text-muted">Phone Number</Text>
+        <Text className="ml-1 text-base font-psemibold text-[#B3261E]">*</Text>
       </View>
 
       <View
         style={{ marginTop: 8 }}
-        className={`border-2 w-full h-14 rounded-2xl items-center flex-row overflow-hidden ${hasError ? 'border-[#C44159] bg-[#2B1217]' : 'border-black-200 bg-black-100'}`}
+        className={`border-2 w-full h-14 rounded-2xl items-center flex-row overflow-hidden ${hasError ? 'border-[#B3261E] bg-[#FBEAE8]' : 'border-line bg-card'}`}
       >
         {/* Country picker button */}
         <TouchableOpacity
@@ -142,25 +142,25 @@ const PhoneField = ({ value, onChangePhone, OtherStyles = '', hasError = false }
             alignItems: 'center',
             paddingHorizontal: 12,
             borderRightWidth: 1,
-            borderRightColor: '#3a3a4a',
+            borderRightColor: '#D5CDC2',
             height: '100%',
             gap: 4,
           }}
         >
           <Text style={{ fontSize: 20 }}>{getFlagEmoji(selected.code)}</Text>
-          <Text style={{ color: '#CBD5E1', fontSize: 13, fontFamily: 'Poppins-SemiBold' }}>
+          <Text style={{ color: '#3F3A35', fontSize: 13, fontFamily: 'DMSans-SemiBold' }}>
             {selected.dial}
           </Text>
-          <Text style={{ color: '#7b7b8b', fontSize: 11 }}>▾</Text>
+          <Text style={{ color: '#8A8178', fontSize: 11 }}>▾</Text>
         </TouchableOpacity>
 
         {/* Number input */}
         <TextInput
-          style={{ flex: 1, paddingHorizontal: 12, color: '#fff', fontFamily: 'Poppins-SemiBold', fontSize: 15 }}
+          style={{ flex: 1, paddingHorizontal: 12, color: '#1A1817', fontFamily: 'DMSans-SemiBold', fontSize: 15 }}
           value={localNumber}
           onChangeText={handleNumberChange}
           placeholder="Enter your number"
-          placeholderTextColor="#7b7b8b"
+          placeholderTextColor="#8A8178"
           keyboardType="phone-pad"
         />
       </View>
@@ -178,7 +178,7 @@ const PhoneField = ({ value, onChangePhone, OtherStyles = '', hasError = false }
               bottom: 0,
               left: 0,
               right: 0,
-              backgroundColor: '#1E1E2D',
+              backgroundColor: '#FFFFFF',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
               paddingTop: 12,
@@ -187,9 +187,9 @@ const PhoneField = ({ value, onChangePhone, OtherStyles = '', hasError = false }
             }}
           >
             {/* Handle bar */}
-            <View style={{ width: 40, height: 4, borderRadius: 99, backgroundColor: '#3a3a4a', alignSelf: 'center', marginBottom: 16 }} />
+            <View style={{ width: 40, height: 4, borderRadius: 99, backgroundColor: '#D5CDC2', alignSelf: 'center', marginBottom: 16 }} />
 
-            <Text style={{ color: '#CBD5E1', fontSize: 16, fontFamily: 'Poppins-SemiBold', paddingHorizontal: 20, marginBottom: 12 }}>
+            <Text style={{ color: '#3F3A35', fontSize: 16, fontFamily: 'DMSans-SemiBold', paddingHorizontal: 20, marginBottom: 12 }}>
               Select country
             </Text>
 
@@ -205,14 +205,14 @@ const PhoneField = ({ value, onChangePhone, OtherStyles = '', hasError = false }
                     paddingHorizontal: 20,
                     paddingVertical: 14,
                     gap: 12,
-                    backgroundColor: item.code === selected.code ? '#2a2a3d' : 'transparent',
+                    backgroundColor: item.code === selected.code ? '#EDE8E1' : 'transparent',
                   }}
                 >
                   <Text style={{ fontSize: 24 }}>{getFlagEmoji(item.code)}</Text>
-                  <Text style={{ flex: 1, color: '#CBD5E1', fontSize: 14, fontFamily: 'Poppins-Regular' }}>
+                  <Text style={{ flex: 1, color: '#3F3A35', fontSize: 14, fontFamily: 'DMSans-Regular' }}>
                     {item.name}
                   </Text>
-                  <Text style={{ color: '#7b7b8b', fontSize: 13, fontFamily: 'Poppins-SemiBold' }}>
+                  <Text style={{ color: '#8A8178', fontSize: 13, fontFamily: 'DMSans-SemiBold' }}>
                     {item.dial}
                   </Text>
                 </TouchableOpacity>

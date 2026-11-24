@@ -1,7 +1,7 @@
 import { TouchableOpacity ,View, Text } from 'react-native'
 import React from 'react'
 
-const CustomButton = ({title, handlePress, containerStyles, textStyles, isLoading }) => {
+const CustomButton = ({title, handlePress, containerStyles, textStyles, isLoading, backgroundColor = '#1A1817', textColor = '#F4F1EC' }) => {
   return (
 
     <TouchableOpacity 
@@ -10,11 +10,11 @@ const CustomButton = ({title, handlePress, containerStyles, textStyles, isLoadin
     className= {`rounded-xl min-h-[62px] justify-center items-center 
     ${containerStyles} ${isLoading ? 'opacity-50' : ''}`}
     disabled={isLoading}
-    style={{ backgroundColor: '#8ed1fc' }}
+    style={{ backgroundColor }}
       
     >
 
-        <Text className ={`text-primary font-psemibold text-lg $ ${textStyles}`}>
+        <Text className ={`font-psemibold text-lg ${textStyles}`} style={{ color: textColor }}>
           {title}
         
         </Text>
