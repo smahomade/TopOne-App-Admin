@@ -34,6 +34,10 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
   const [chosen, setChosen] = useState<ChosenImage | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A see-through PNG or WebP is recoloured on the pages, so the preview is too.
+  const previewRecolours = chosen
+    ? chosen.mimeType === 'image/png' || chosen.mimeType === 'image/webp'
+    : !!customLogoUrl && /\.(png|webp)(\?|$)/i.test(customLogoUrl);
 
   // Starts fresh every time it opens.
   useEffect(() => {
@@ -59,6 +63,9 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 1,
+        // An iPhone photo can be HEIC, which not every phone can show: ask
+        // for a JPEG copy of those. PNGs stay PNG.
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
       const asset = result.canceled ? null : result.assets?.[0];
 
@@ -85,11 +92,13 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
       const extension = chosen.mimeType === 'image/png' ? 'png' : chosen.mimeType === 'image/webp' ? 'webp' : 'jpg';
       const fileName = `logo/logo-${Date.now()}.${extension}`;
       const response = await fetch(chosen.uri);
-      const blob = await response.blob();
+      // The photo's bytes, as Supabase asks for on phones: a Blob upload can
+      // arrive empty or fail outright from an iPhone.
+      const fileData = await response.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from('images')
-        .upload(fileName, blob, { contentType: chosen.mimeType, upsert: true });
+        .upload(fileName, fileData, { contentType: chosen.mimeType, upsert: true });
       if (uploadError) throw uploadError;
 
       const publicUrl = supabase.storage.from('images').getPublicUrl(fileName).data.publicUrl;
@@ -132,47 +141,48 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
       <View className="flex-1 items-center justify-center px-6" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
         {/* Capped and scrollable: with a new image chosen, the warning and
             extra buttons don't fit on a small phone otherwise. */}
-        <View className="w-full rounded-2xl bg-black-100" style={{ maxHeight: '90%' }}>
+        <View className="w-full rounded-2xl bg-card" style={{ maxHeight: '90%' }}>
         <ScrollView contentContainerStyle={{ padding: 20 }}>
-          <Text className="text-center text-xl text-white font-psemibold">Change logo</Text>
-          <Text className="mt-1 text-center text-sm text-gray-100 font-pregular">
+          <Text className="text-center text-xl text-ink font-psemibold">Change logo</Text>
+          <Text className="mt-1 text-center text-sm text-muted font-pregular">
             Shown at the top of the staff and customer apps.
           </Text>
 
-          {/* Shown on the app's own dark background, as customers will see it. */}
-          <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: '#161622', height: 100 }}>
+          {/* Shown on the apps' cream background, drawn the way the pages draw it. */}
+          <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: '#F4F1EC', height: 100 }}>
             <Image
               source={chosen ? { uri: chosen.uri } : currentLogo}
               style={{ width: '100%', height: '100%' }}
               resizeMode="contain"
+              tintColor={previewRecolours ? '#1A1817' : undefined}
             />
           </View>
-          <Text className="mt-2 text-center text-xs text-gray-100 font-pregular">
+          <Text className="mt-2 text-center text-xs text-muted font-pregular">
             {chosen ? `New logo · ${chosen.width} × ${chosen.height} px` : 'Current logo'}
           </Text>
 
           {sizeWarning ? (
-            <Text className="mt-2 text-center text-xs font-pregular" style={{ color: '#FFA001' }}>
+            <Text className="mt-2 text-center text-xs font-pregular" style={{ color: '#1A1817' }}>
               {sizeWarning}
             </Text>
           ) : null}
 
-          <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(142, 209, 252, 0.08)' }}>
-            <Text className="text-sm text-white font-psemibold">For the best result</Text>
+          <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: 'rgba(26, 24, 23, 0.08)' }}>
+            <Text className="text-sm text-ink font-psemibold">For the best result</Text>
             {[
               `About ${BEST_WIDTH} × ${BEST_HEIGHT} px, a wide shape`,
               'PNG with a see-through background',
-              'White or light, to stand out on the dark screens',
+              'One colour: the apps show it black on cream and white on photos',
             ].map((tip) => (
               <View key={tip} className="mt-1 flex-row items-start">
-                <Text className="mr-2 text-xs text-secondary font-pregular">•</Text>
-                <Text className="flex-1 text-xs leading-5 text-gray-100 font-pregular">{tip}</Text>
+                <Text className="mr-2 text-xs text-ink font-pregular">•</Text>
+                <Text className="flex-1 text-xs leading-5 text-muted font-pregular">{tip}</Text>
               </View>
             ))}
           </View>
 
           {error ? (
-            <Text className="mt-3 text-center text-sm font-pregular" style={{ color: '#F87171' }}>
+            <Text className="mt-3 text-center text-sm font-pregular" style={{ color: '#B3261E' }}>
               {error}
             </Text>
           ) : null}
@@ -182,12 +192,12 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
               onPress={saveLogo}
               disabled={saving}
               activeOpacity={0.8}
-              className="mt-5 min-h-[56px] items-center justify-center rounded-xl bg-secondary"
+              className="mt-5 min-h-[56px] items-center justify-center rounded-xl bg-ink"
             >
               {saving ? (
-                <ActivityIndicator color="#161622" />
+                <ActivityIndicator color="#F4F1EC" />
               ) : (
-                <Text className="text-base text-primary font-psemibold">Save new logo</Text>
+                <Text className="text-base text-cream font-psemibold">Save new logo</Text>
               )}
             </TouchableOpacity>
           ) : null}
@@ -196,21 +206,21 @@ const ChangeLogoModal = ({ visible, onClose }: { visible: boolean; onClose: () =
             onPress={chooseImage}
             disabled={saving}
             activeOpacity={0.8}
-            className={`min-h-[56px] items-center justify-center rounded-xl ${chosen ? 'mt-3 border border-secondary' : 'mt-5 bg-secondary'}`}
+            className={`min-h-[56px] items-center justify-center rounded-xl ${chosen ? 'mt-3 border border-ink' : 'mt-5 bg-ink'}`}
           >
-            <Text className={`text-base font-psemibold ${chosen ? 'text-secondary' : 'text-primary'}`}>
+            <Text className={`text-base font-psemibold ${chosen ? 'text-ink' : 'text-cream'}`}>
               {chosen ? 'Choose a different image' : 'Choose image'}
             </Text>
           </TouchableOpacity>
 
           {customLogoUrl && !chosen ? (
             <TouchableOpacity onPress={restoreOriginalLogo} disabled={saving} className="mt-3 items-center py-2">
-              <Text className="text-sm text-gray-100 font-pregular">Go back to the original TopOne logo</Text>
+              <Text className="text-sm text-muted font-pregular">Go back to the original TopOne logo</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity onPress={onClose} disabled={saving} className="mt-1 items-center py-2">
-            <Text className="text-gray-100 font-pregular">Cancel</Text>
+            <Text className="text-muted font-pregular">Cancel</Text>
           </TouchableOpacity>
         </ScrollView>
         </View>

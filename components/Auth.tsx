@@ -47,58 +47,58 @@ export default function Auth() {
     setLoading(false);
   }
 
-  const inputClass = "bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-1";
+  const inputClass = "bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-1";
 
   return (
     <View className="px-5 pt-6">
-      <Text className="text-white font-psemibold text-2xl mb-8 text-center">Log In</Text>
+      <Text className="text-ink font-display text-[28px] mb-8 text-center">Log In</Text>
 
-      <Text className="text-gray-100 font-pregular text-sm mb-1">Auth Code</Text>
+      <Text className="text-muted font-pregular text-sm mb-1">Auth Code</Text>
       <TextInput
         value={authCode}
         onChangeText={setAuthCode}
         placeholder="Enter auth code"
-        placeholderTextColor="#7B7B8B"
+        placeholderTextColor="#8A8178"
         keyboardType="numeric"
         autoCapitalize="none"
         className={inputClass}
-        style={{ color: '#fff' }}
+        style={{ color: '#1A1817' }}
       />
 
-      <Text className="text-gray-100 font-pregular text-sm mb-1 mt-4">Email</Text>
+      <Text className="text-muted font-pregular text-sm mb-1 mt-4">Email</Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="email@address.com"
-        placeholderTextColor="#7B7B8B"
+        placeholderTextColor="#8A8178"
         autoCapitalize="none"
         keyboardType="email-address"
         className={inputClass}
-        style={{ color: '#fff' }}
+        style={{ color: '#1A1817' }}
       />
 
-      <Text className="text-gray-100 font-pregular text-sm mb-1 mt-4">Password</Text>
+      <Text className="text-muted font-pregular text-sm mb-1 mt-4">Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}
         placeholder="Password"
-        placeholderTextColor="#7B7B8B"
+        placeholderTextColor="#8A8178"
         secureTextEntry
         autoCapitalize="none"
         className={inputClass}
-        style={{ color: '#fff' }}
+        style={{ color: '#1A1817' }}
       />
 
       <TouchableOpacity
         onPress={signInWithEmail}
         disabled={loading}
         activeOpacity={0.8}
-        className="bg-secondary rounded-2xl h-16 items-center justify-center mt-8"
+        className="bg-ink rounded-2xl h-16 items-center justify-center mt-8"
       >
         {loading ? (
-          <ActivityIndicator color="#161622" />
+          <ActivityIndicator color="#F4F1EC" />
         ) : (
-          <Text className="text-primary font-psemibold text-base">Sign In</Text>
+          <Text className="text-cream font-psemibold text-base">Sign In</Text>
         )}
       </TouchableOpacity>
     </View>

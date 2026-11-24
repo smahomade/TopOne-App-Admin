@@ -156,7 +156,7 @@ const Services = () => {
     setEditMainCategory(group.mainCategory);
     setEditServiceCategory(group.serviceCategory ?? '');
     setEditOriginal({ service: group.service, mainCategory: group.mainCategory, serviceCategory: group.serviceCategory ?? null });
-    setShowRolesModal(false);
+    // The options sheet stays open underneath; Cancel goes back to it.
     setEditModal(true);
   };
 
@@ -187,7 +187,9 @@ const Services = () => {
         ? await groupQuery.eq('service_category', editOriginal.serviceCategory)
         : await groupQuery.is('service_category', null);
       if (groupError) { Alert.alert('Error', 'Could not save the service name, section or duration.'); return; }
+      // Both sheets close: the options sheet would show the old values.
       setEditModal(false);
+      setShowRolesModal(false);
       await fetchServices();
     } catch (error) {
       console.error('Error saving edit:', error);
@@ -276,8 +278,88 @@ const Services = () => {
     } : prev);
   };
 
+  // The edit sheet opens on top of the options sheet, inside its Modal: an
+  // iPhone drops a pop-up that opens while another is still closing.
+  const editServiceModal = (
+    <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
+      {/* Scrolls and moves up for the keyboard, so every field can be reached. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+      >
+        <View className="bg-card rounded-t-2xl px-5 pt-5 pb-8">
+          <View className="w-10 h-1 bg-field rounded-full self-center mb-5" />
+          <Text className="text-ink font-psemibold text-xl mb-4">Edit Service</Text>
+
+          <Text className="text-muted font-pregular text-xs mb-1 ml-1">Section (e.g. Ladies, Gents, Face)</Text>
+          <TextInput
+            value={editServiceCategory}
+            onChangeText={setEditServiceCategory}
+            placeholder="Section (optional)"
+            placeholderTextColor="#8A8178"
+            className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-muted font-pregular text-xs mb-1 ml-1">Service name</Text>
+          <TextInput
+            value={editService}
+            onChangeText={setEditService}
+            placeholder="Service name"
+            placeholderTextColor="#8A8178"
+            className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-muted font-pregular text-xs mb-1 ml-1">Duration (minutes)</Text>
+          <TextInput
+            value={editDuration}
+            onChangeText={setEditDuration}
+            placeholder="Duration (minutes)"
+            placeholderTextColor="#8A8178"
+            keyboardType="numeric"
+            className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-muted font-pregular text-xs mb-1 ml-1">Price (£) · empty shows "Price on consultation"</Text>
+          <TextInput
+            value={editPrice}
+            onChangeText={setEditPrice}
+            placeholder="Price"
+            placeholderTextColor="#8A8178"
+            keyboardType="numeric"
+            className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
+          />
+          <Text className="text-muted font-pregular text-xs mb-1 ml-1">Role</Text>
+          <TextInput
+            value={editRole}
+            onChangeText={setEditRole}
+            placeholder="Role (e.g. Senior Stylist)"
+            placeholderTextColor="#8A8178"
+            className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-4"
+          />
+
+          <TouchableOpacity
+            onPress={handleSaveEdit}
+            disabled={loading}
+            className="bg-ink rounded-xl py-4 items-center mb-3"
+          >
+            {loading ? (
+              <ActivityIndicator color="#F4F1EC" />
+            ) : (
+              <Text className="text-cream font-psemibold text-base">Save Changes</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
+            <Text className="text-muted font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+
   return (
-    <SafeAreaView className="bg-primary flex-1">
+    <SafeAreaView className="bg-cream flex-1">
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* Header */}
@@ -287,13 +369,13 @@ const Services = () => {
             style={{ width: 150, height: 60 }}
             resizeMode="contain"
           />
-          <Text className="text-white font-psemibold text-xl mt-2">TopOne Salon</Text>
+          <Text className="text-ink font-display text-[26px] mt-2">TopOne Salon</Text>
           <TouchableOpacity
             onPress={() => setLocationPickerVisible(true)}
             className="flex-row items-center mt-1"
           >
-            <Text className="text-secondary font-psemibold text-sm mr-1">{selectedLocationName || 'Select Location'}</Text>
-            <Image source={icons.rightArrow} style={{ width: 12, height: 12, transform: [{ rotate: '90deg' }] }} tintColor="#FFA001" resizeMode="contain" />
+            <Text className="text-ink font-psemibold text-sm mr-1">{selectedLocationName || 'Select Location'}</Text>
+            <Image source={icons.rightArrow} style={{ width: 12, height: 12, transform: [{ rotate: '90deg' }] }} tintColor="#1A1817" resizeMode="contain" />
           </TouchableOpacity>
         </View>
 
@@ -305,9 +387,9 @@ const Services = () => {
           onRequestClose={() => setLocationPickerVisible(false)}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-            <View style={{ backgroundColor: '#1E1E2D', borderRadius: 16, width: '100%', overflow: 'hidden' }}>
-              <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#232533' }}>
-                <Text style={{ color: '#fff', fontFamily: 'Poppins-SemiBold', fontSize: 16 }}>Select Location</Text>
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, width: '100%', overflow: 'hidden' }}>
+              <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#E4DDD3' }}>
+                <Text style={{ color: '#1A1817', fontFamily: 'DMSans-SemiBold', fontSize: 16 }}>Select Location</Text>
               </View>
               <FlatList
                 data={locations}
@@ -321,17 +403,17 @@ const Services = () => {
                     style={{
                       padding: 18,
                       borderBottomWidth: 1,
-                      borderBottomColor: '#232533',
+                      borderBottomColor: '#E4DDD3',
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                     }}
                   >
-                    <Text style={{ color: item.id === selectedLocationId ? '#FFA001' : '#CDCDE0', fontFamily: 'Poppins-SemiBold', fontSize: 14 }}>
+                    <Text style={{ color: item.id === selectedLocationId ? '#1A1817' : '#6B635A', fontFamily: 'DMSans-SemiBold', fontSize: 14 }}>
                       {item.name}
                     </Text>
                     {item.id === selectedLocationId && (
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFA001' }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#1A1817' }} />
                     )}
                   </TouchableOpacity>
                 )}
@@ -340,18 +422,18 @@ const Services = () => {
                 onPress={() => setLocationPickerVisible(false)}
                 style={{ padding: 16, alignItems: 'center' }}
               >
-                <Text style={{ color: '#7B7B8B', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Cancel</Text>
+                <Text style={{ color: '#8A8178', fontFamily: 'DMSans-Regular', fontSize: 14 }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
         {/* Divider */}
-        <View className="h-px bg-black-200 mx-4 mb-4" />
+        <View className="h-px bg-field mx-4 mb-4" />
 
         {loading ? (
           <View className="py-20 items-center">
-            <ActivityIndicator size="large" color="#8ED1FC" />
+            <ActivityIndicator size="large" color="#1A1817" />
           </View>
         ) : (
           <>
@@ -375,10 +457,10 @@ const Services = () => {
         {/* Add Service Button */}
         <TouchableOpacity
           onPress={() => setShowAddForm(true)}
-          className="mx-4 mt-6 bg-secondary rounded-xl py-4 flex-row items-center justify-center"
+          className="mx-4 mt-6 bg-ink rounded-xl py-4 flex-row items-center justify-center"
         >
-          <Image source={icons.plus} className="w-5 h-5 mr-2" tintColor="#161622" resizeMode="contain" />
-          <Text className="text-primary font-psemibold text-base">Add New Service</Text>
+          <Image source={icons.plus} className="w-5 h-5 mr-2" tintColor="#F4F1EC" resizeMode="contain" />
+          <Text className="text-cream font-psemibold text-base">Add New Service</Text>
         </TouchableOpacity>
 
         {/* Add Service Form */}
@@ -429,6 +511,7 @@ const Services = () => {
             onConfirm={() => void confirmDeleteRole()}
             onCancel={() => setPendingRoleDelete(null)}
           />
+          {editServiceModal}
         </RolesModal>
 
         <ConfirmModal
@@ -448,82 +531,6 @@ const Services = () => {
           onCancel={() => setPendingServiceDelete(null)}
         />
 
-        {/* Edit Service Modal */}
-        <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
-          {/* Scrolls and moves up for the keyboard, so every field can be reached. */}
-          <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-          >
-            <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8">
-              <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-              <Text className="text-white font-psemibold text-xl mb-4">Edit Service</Text>
-
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Section (e.g. Ladies, Gents, Face)</Text>
-              <TextInput
-                value={editServiceCategory}
-                onChangeText={setEditServiceCategory}
-                placeholder="Section (optional)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Service name</Text>
-              <TextInput
-                value={editService}
-                onChangeText={setEditService}
-                placeholder="Service name"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Duration (minutes)</Text>
-              <TextInput
-                value={editDuration}
-                onChangeText={setEditDuration}
-                placeholder="Duration (minutes)"
-                placeholderTextColor="#7B7B8B"
-                keyboardType="numeric"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Price (£) · empty shows "Price on consultation"</Text>
-              <TextInput
-                value={editPrice}
-                onChangeText={setEditPrice}
-                placeholder="Price"
-                placeholderTextColor="#7B7B8B"
-                keyboardType="numeric"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
-              />
-              <Text className="text-gray-100 font-pregular text-xs mb-1 ml-1">Role</Text>
-              <TextInput
-                value={editRole}
-                onChangeText={setEditRole}
-                placeholder="Role (e.g. Senior Stylist)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
-              />
-
-              <TouchableOpacity
-                onPress={handleSaveEdit}
-                disabled={loading}
-                className="bg-secondary rounded-xl py-4 items-center mb-3"
-              >
-                {loading ? (
-                  <ActivityIndicator color="#161622" />
-                ) : (
-                  <Text className="text-primary font-psemibold text-base">Save Changes</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-          </KeyboardAvoidingView>
-        </Modal>
       </ScrollView>
     </SafeAreaView>
   );

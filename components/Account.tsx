@@ -93,19 +93,19 @@ export default function Account({ session }: { session: Session }) {
   }
 
   return (
-  <SafeAreaView style={{ flex: 1, backgroundColor: '#161622' }}>
+  <SafeAreaView style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <View className="px-4 pt-6 pb-10">
 
-        <Text className="text-white font-psemibold text-2xl mb-6">Profile</Text>
+        <Text className="text-ink font-display text-[28px] mb-6">Profile</Text>
 
         <FormField
           title="Admin Code"
           value={adminCode?.toString() || ''}
           placeholder="Admin Code"
-          titleColor="text-gray-100"
+          titleColor="text-muted"
           editable={false}
-          textColor="#CDCDE0"
+          textColor="#6B635A"
           secret
         />
 
@@ -113,9 +113,9 @@ export default function Account({ session }: { session: Session }) {
           title="Email"
           value={session?.user?.email || ''}
           placeholder="User email"
-          titleColor="text-gray-100"
+          titleColor="text-muted"
           editable={false}
-          textColor="#CDCDE0"
+          textColor="#6B635A"
           OtherStyles="mt-5"
         />
 
@@ -125,7 +125,7 @@ export default function Account({ session }: { session: Session }) {
           handleChangeText={setFirstName}
           placeholder="Enter your first name"
           OtherStyles="mt-5"
-          titleColor="text-gray-100"
+          titleColor="text-muted"
         />
         <FormField
           title="Last Name"
@@ -133,7 +133,7 @@ export default function Account({ session }: { session: Session }) {
           handleChangeText={setLastName}
           placeholder="Enter your last name"
           OtherStyles="mt-5"
-          titleColor="text-gray-100"
+          titleColor="text-muted"
         />
         {/* The same field as the customer app, so the number shows with its
             flag and country code, and a new one is saved as +44… */}
@@ -144,7 +144,7 @@ export default function Account({ session }: { session: Session }) {
           hasError={showPhoneError}
         />
         {showPhoneError && (
-          <Text className="mt-2 font-pregular text-sm text-[#FF8A8A]">
+          <Text className="mt-2 font-pregular text-sm text-[#B3261E]">
             Enter your full phone number.
           </Text>
         )}
@@ -167,12 +167,12 @@ export default function Account({ session }: { session: Session }) {
           }}
           disabled={loading}
           activeOpacity={0.8}
-          className="bg-secondary rounded-2xl h-16 items-center justify-center mt-8 mb-3"
+          className="bg-ink rounded-2xl h-16 items-center justify-center mt-8 mb-3"
         >
           {loading ? (
-            <ActivityIndicator color="#161622" />
+            <ActivityIndicator color="#F4F1EC" />
           ) : (
-            <Text className="text-primary font-psemibold text-base">Update Profile</Text>
+            <Text className="text-cream font-psemibold text-base">Update Profile</Text>
           )}
         </TouchableOpacity>
 
@@ -182,9 +182,9 @@ export default function Account({ session }: { session: Session }) {
             router.replace('/');
           }}
           activeOpacity={0.8}
-          className="rounded-2xl h-16 items-center justify-center border border-red-500"
+          className="rounded-2xl h-16 items-center justify-center border border-danger"
         >
-          <Text className="text-red-500 font-psemibold text-base">Sign Out</Text>
+          <Text className="text-danger font-psemibold text-base">Sign Out</Text>
         </TouchableOpacity>
 
       </View>

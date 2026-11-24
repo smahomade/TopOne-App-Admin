@@ -6,9 +6,9 @@ const inputField = (value: string, setter: (v: string) => void, placeholder: str
     value={value}
     onChangeText={setter}
     placeholder={placeholder}
-    placeholderTextColor="#7B7B8B"
+    placeholderTextColor="#8A8178"
     keyboardType={numeric ? 'numeric' : 'default'}
-    className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+    className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
   />
 );
 
@@ -48,22 +48,22 @@ const AddServiceForm = ({
   setShowAddForm: (v: boolean) => void;
 }) => {
   return (
-    <View className="mx-4 mt-4 bg-black-100 rounded-2xl p-5">
-      <Text className="text-white font-psemibold text-lg mb-1">Add New Service</Text>
+    <View className="mx-4 mt-4 bg-card rounded-2xl p-5">
+      <Text className="text-ink font-psemibold text-lg mb-1">Add New Service</Text>
 
       {/* Main Category Selector */}
-      <Text className="text-gray-100 font-pregular text-xs mb-2">Main Category</Text>
+      <Text className="text-muted font-pregular text-xs mb-2">Main Category</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
         {existingCategories.map((cat) => (
           <TouchableOpacity
             key={cat}
             onPress={() => setMainCategory(cat)}
             className={`mr-2 px-4 py-2 rounded-full border ${
-              mainCategory === cat ? 'bg-secondary border-secondary' : 'bg-black-200 border-black-200'
+              mainCategory === cat ? 'bg-ink border-ink' : 'bg-field border-line'
             }`}
           >
             <Text className={`font-psemibold text-sm ${
-              mainCategory === cat ? 'text-primary' : 'text-gray-100'
+              mainCategory === cat ? 'text-cream' : 'text-muted'
             }`}>{cat}</Text>
           </TouchableOpacity>
         ))}
@@ -74,13 +74,13 @@ const AddServiceForm = ({
         value={existingCategories.includes(mainCategory) ? '' : mainCategory}
         onChangeText={(v) => setMainCategory(v)}
         placeholder="Or type a new category..."
-        placeholderTextColor="#7B7B8B"
-        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+        placeholderTextColor="#8A8178"
+        className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
       />
 
       {/* Sections group a category's services under headings, like
           Ladies / Gents under Hair, or Face / Arms under Laser. */}
-      <Text className="text-gray-100 font-pregular text-xs mb-2">Section (optional)</Text>
+      <Text className="text-muted font-pregular text-xs mb-2">Section (optional)</Text>
       {existingSections.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
           {existingSections.map((section) => (
@@ -88,11 +88,11 @@ const AddServiceForm = ({
               key={section}
               onPress={() => setServiceCategory(serviceCategory === section ? '' : section)}
               className={`mr-2 px-4 py-2 rounded-full border ${
-                serviceCategory === section ? 'bg-secondary border-secondary' : 'bg-black-200 border-black-200'
+                serviceCategory === section ? 'bg-ink border-ink' : 'bg-field border-line'
               }`}
             >
               <Text className={`font-psemibold text-sm ${
-                serviceCategory === section ? 'text-primary' : 'text-gray-100'
+                serviceCategory === section ? 'text-cream' : 'text-muted'
               }`}>{section}</Text>
             </TouchableOpacity>
           ))}
@@ -102,8 +102,8 @@ const AddServiceForm = ({
         value={existingSections.includes(serviceCategory) ? '' : serviceCategory}
         onChangeText={setServiceCategory}
         placeholder={existingSections.length > 0 ? 'Or type a new section...' : 'Section, e.g. Ladies'}
-        placeholderTextColor="#7B7B8B"
-        className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+        placeholderTextColor="#8A8178"
+        className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
       />
 
       {inputField(service, setService, 'Service name')}
@@ -113,16 +113,16 @@ const AddServiceForm = ({
 
       <TouchableOpacity
         onPress={handleAddService}
-        className="bg-secondary rounded-xl py-4 items-center mt-1"
+        className="bg-ink rounded-xl py-4 items-center mt-1"
       >
-        <Text className="text-primary font-psemibold text-base">Submit Service</Text>
+        <Text className="text-cream font-psemibold text-base">Submit Service</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         onPress={() => setShowAddForm(false)}
         className="items-center py-3 mt-1"
       >
-        <Text className="text-gray-100 font-pregular">Cancel</Text>
+        <Text className="text-muted font-pregular">Cancel</Text>
       </TouchableOpacity>
     </View>
   );

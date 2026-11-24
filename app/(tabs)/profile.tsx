@@ -26,7 +26,7 @@ export default function App() {
 
   return (
     <>
-    <View style={{ flex: 1, backgroundColor: '#161622' }}>
+    <View style={{ flex: 1, backgroundColor: '#F4F1EC' }}>
       <View style={{ alignItems: 'center', paddingTop: 52, paddingBottom: 12 }}>
         <SalonLogo
           style={{ width: 160, height: 64 }}

@@ -59,12 +59,12 @@ const TabsLayout = () => {
           // The tab bar now boxes icons to 31x28 at the top of each tab, which
           // wraps our labels and pushes icon and label up to the top edge.
           tabBarIconStyle: { width: '100%', height: '100%' },
-          tabBarActiveTintColor: '#8ED1FC',
-          tabBarInactiveTintColor: '#CDCDE0',
+          tabBarActiveTintColor: '#1A1817',
+          tabBarInactiveTintColor: '#7A7168',
           tabBarStyle: {
-            backgroundColor: '#161622',
+            backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
-            borderTopColor: '#232533',
+            borderTopColor: '#E4DDD3',
             height: TAB_BAR_CONTENT_HEIGHT + bottom,
           },
         }}
@@ -97,7 +97,7 @@ const TabsLayout = () => {
             title: 'Collections',
             headerShown: false,
             tabBarIcon: ({ color, focused }) => (
-              <TabIcon icon={icons.comb} color={color} name="Collections" focused={focused} noTint size={24} />
+              <TabIcon icon={icons.comb} color={color} name="Collections" focused={focused} size={24} />
             ),
           }}
         />

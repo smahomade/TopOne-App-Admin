@@ -16,12 +16,12 @@ const CategorySelector = ({ servicesData, selectedCategory, setSelectedCategory 
             key={category}
             onPress={() => setSelectedCategory(category)}
             className={`mr-3 px-5 py-2 rounded-full border ${
-              active ? 'bg-secondary border-secondary' : 'bg-black-100 border-black-200'
+              active ? 'bg-ink border-ink' : 'bg-card border-line'
             }`}
           >
             <Text
               className={`font-psemibold text-sm ${
-                active ? 'text-primary' : 'text-gray-100'
+                active ? 'text-cream' : 'text-muted'
               }`}
             >
               {category}

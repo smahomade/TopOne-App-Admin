@@ -158,10 +158,12 @@ const Location = () => {
   const uploadImage = async (localUri: string, prefix: string) => {
     const fileName = `${prefix}-${Date.now()}.jpg`;
     const response = await fetch(localUri);
-    const blob = await response.blob();
+    // The photo's bytes, as Supabase asks for on phones: a Blob upload can
+    // arrive empty or fail outright from an iPhone.
+    const fileData = await response.arrayBuffer();
     const { error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
+      .upload(fileName, fileData, { contentType: 'image/jpeg', upsert: true });
     if (error) throw error;
     return supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName).data.publicUrl;
   };
@@ -344,43 +346,43 @@ const Location = () => {
 
   const renderScheduleEditor = (schedule: DaySchedule[], setSchedule: (s: DaySchedule[]) => void) => (
     <View className="mb-4">
-      <Text className="text-white font-psemibold text-base mb-3">Opening Hours</Text>
+      <Text className="text-ink font-psemibold text-base mb-3">Opening Hours</Text>
       {schedule.map((day) => (
-        <View key={day.day_of_week} className="mb-3 bg-black-200 rounded-xl px-4 py-3">
+        <View key={day.day_of_week} className="mb-3 bg-field rounded-xl px-4 py-3">
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-white font-psemibold text-sm">{DAY_NAMES[day.day_of_week]}</Text>
+            <Text className="text-ink font-psemibold text-sm">{DAY_NAMES[day.day_of_week]}</Text>
             <View className="flex-row items-center">
-              <Text className="text-gray-100 font-pregular text-xs mr-2">
+              <Text className="text-muted font-pregular text-xs mr-2">
                 {day.is_closed ? 'Closed' : 'Open'}
               </Text>
               <Switch
                 value={!day.is_closed}
                 onValueChange={(val) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'is_closed', !val)}
-                trackColor={{ false: '#444', true: '#8ED1FC' }}
-                thumbColor={day.is_closed ? '#888' : '#161622'}
+                trackColor={{ false: '#D5CDC2', true: '#1A1817' }}
+                thumbColor={day.is_closed ? '#8A8178' : '#F4F1EC'}
               />
             </View>
           </View>
           {!day.is_closed && (
             <View className="flex-row" style={{ gap: 8 }}>
               <View className="flex-1">
-                <Text className="text-gray-100 font-pregular text-xs mb-1">Open</Text>
+                <Text className="text-muted font-pregular text-xs mb-1">Open</Text>
                 <TextInput
                   value={day.open_time}
                   onChangeText={(v) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'open_time', v)}
                   placeholder="09:00"
-                  placeholderTextColor="#7B7B8B"
-                  className="bg-primary text-white font-pregular rounded-lg px-3 py-2 text-sm"
+                  placeholderTextColor="#8A8178"
+                  className="bg-cream text-ink font-pregular rounded-lg px-3 py-2 text-sm"
                 />
               </View>
               <View className="flex-1">
-                <Text className="text-gray-100 font-pregular text-xs mb-1">Close</Text>
+                <Text className="text-muted font-pregular text-xs mb-1">Close</Text>
                 <TextInput
                   value={day.close_time}
                   onChangeText={(v) => updateScheduleDay(schedule, setSchedule, day.day_of_week, 'close_time', v)}
                   placeholder="18:00"
-                  placeholderTextColor="#7B7B8B"
-                  className="bg-primary text-white font-pregular rounded-lg px-3 py-2 text-sm"
+                  placeholderTextColor="#8A8178"
+                  className="bg-cream text-ink font-pregular rounded-lg px-3 py-2 text-sm"
                 />
               </View>
             </View>
@@ -405,27 +407,73 @@ const Location = () => {
       <View
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 16,
+          backgroundColor: 'rgba(26, 24, 23, 0.5)', borderRadius: 16,
         }}
       />
-      <View className="absolute top-3 right-3 bg-black-200 px-2 py-1 rounded-lg flex-row items-center">
-        <Image source={icons.upload} className="w-3 h-3 mr-1" tintColor="#8ED1FC" resizeMode="contain" />
-        <Text className="text-secondary font-pregular text-xs">Edit</Text>
+      <View className="absolute top-3 right-3 bg-field px-2 py-1 rounded-lg flex-row items-center">
+        <Image source={icons.upload} className="w-3 h-3 mr-1" tintColor="#1A1817" resizeMode="contain" />
+        <Text className="text-ink font-pregular text-xs">Edit</Text>
       </View>
       <View className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-        <Text className="text-white font-psemibold text-2xl">{item.name}</Text>
+        <Text className="text-white font-display text-[26px]">{item.name}</Text>
         {!!item.address_line_1 && (
-          <Text className="text-gray-100 font-pregular text-sm mt-1">{item.address_line_1}</Text>
+          <Text className="text-[#E8E2DA] font-pregular text-sm mt-1">{item.address_line_1}</Text>
         )}
         {!!item.postcode && (
-          <Text className="text-gray-100 font-pregular text-sm">{item.postcode}</Text>
+          <Text className="text-[#E8E2DA] font-pregular text-sm">{item.postcode}</Text>
         )}
       </View>
     </TouchableOpacity>
   );
 
+  // Rendered inside the Add and Edit sheets' own Modals: an iPhone only shows
+  // a pop-up on top of another one when it sits inside it.
+  const bucketPickerModal = (
+    <Modal visible={bucketModal} transparent animationType="slide">
+      <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+        <View className="bg-card rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
+          <View className="w-10 h-1 bg-field rounded-full self-center mb-5" />
+          <Text className="text-ink font-psemibold text-xl mb-4">Choose from uploads</Text>
+
+          {loadingBucket ? (
+            <View className="py-16 items-center">
+              <ActivityIndicator size="large" color="#1A1817" />
+            </View>
+          ) : bucketImages.length === 0 ? (
+            <View className="py-16 items-center">
+              <Text className="text-muted font-pregular text-sm">No images found in bucket.</Text>
+            </View>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="flex-row flex-wrap">
+                {bucketImages.map((img) => (
+                  <TouchableOpacity
+                    key={img.name}
+                    onPress={() => {
+                      bucketOnPick?.(img.url);
+                      setBucketModal(false);
+                    }}
+                    activeOpacity={0.8}
+                    style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
+                    className="rounded-xl overflow-hidden"
+                  >
+                    <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          )}
+
+          <TouchableOpacity onPress={() => setBucketModal(false)} className="items-center py-3 mt-3">
+            <Text className="text-muted font-pregular">Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
-    <SafeAreaView className="bg-primary flex-1">
+    <SafeAreaView className="bg-cream flex-1">
       <FlatList
         data={locations}
         keyExtractor={(item) => item.id}
@@ -441,7 +489,7 @@ const Location = () => {
             >
               <Image
                 source={icons.leftArrow}
-                style={{ width: 28, height: 28, tintColor: '#fff' }}
+                style={{ width: 28, height: 28, tintColor: '#1A1817' }}
                 resizeMode="contain"
               />
             </TouchableOpacity>
@@ -453,25 +501,25 @@ const Location = () => {
               />
             </View>
 
-            <Text className="text-white font-psemibold text-2xl mb-4">Locations</Text>
+            <Text className="text-ink font-display text-[28px] mb-4">Locations</Text>
 
             <TouchableOpacity
               onPress={() => setAddModal(true)}
               activeOpacity={0.8}
-              className="bg-secondary rounded-2xl h-16 items-center justify-center flex-row mb-3"
+              className="bg-ink rounded-2xl h-16 items-center justify-center flex-row mb-3"
             >
               <View
                 className="w-8 h-8 rounded-full items-center justify-center mr-2"
-                style={{ backgroundColor: 'rgba(22,22,34,0.2)' }}
+                style={{ backgroundColor: 'rgba(244, 241, 236, 0.18)' }}
               >
-                <Text className="text-primary font-psemibold text-xl">+</Text>
+                <Text className="text-cream font-psemibold text-xl">+</Text>
               </View>
-              <Text className="text-primary font-psemibold text-base">Add New Location</Text>
+              <Text className="text-cream font-psemibold text-base">Add New Location</Text>
             </TouchableOpacity>
 
             {loading && (
               <View className="py-10 items-center">
-                <ActivityIndicator size="large" color="#8ED1FC" />
+                <ActivityIndicator size="large" color="#1A1817" />
               </View>
             )}
           </View>
@@ -481,14 +529,14 @@ const Location = () => {
       
       <Modal visible={addModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-3" />
-            <Text className="text-white font-psemibold text-xl px-5 mb-4">Add Location</Text>
+          <View className="bg-card rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
+            <View className="w-10 h-1 bg-field rounded-full self-center mb-3" />
+            <Text className="text-ink font-psemibold text-xl px-5 mb-4">Add Location</Text>
             <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
 
               <TouchableOpacity
                 onPress={() => pickImage(setNewImageUri)}
-                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-black-200"
+                className="rounded-xl overflow-hidden mb-2 items-center justify-center bg-field"
                 style={{ height: 140 }}
               >
                 {newImageUri ? (
@@ -496,76 +544,76 @@ const Location = () => {
                     <Image source={{ uri: newImageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }}>
                       <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                      <Text className="text-white font-pregular text-sm">Tap to change</Text>
+                      <Text className="text-ink font-pregular text-sm">Tap to change</Text>
                     </View>
                   </>
                 ) : (
                   <>
-                    <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#8ED1FC" resizeMode="contain" />
-                    <Text className="text-secondary font-pregular text-sm">Tap to upload image</Text>
+                    <Image source={icons.upload} className="w-8 h-8 mb-2" tintColor="#1A1817" resizeMode="contain" />
+                    <Text className="text-ink font-pregular text-sm">Tap to upload image</Text>
                   </>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => openBucketPicker((url) => setNewImageUri(url))}
-                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+                className="bg-field rounded-xl py-3 items-center mb-4 flex-row justify-center"
               >
-                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#1A1817" resizeMode="contain" />
+                <Text className="text-ink font-pregular text-sm">Choose from uploads</Text>
               </TouchableOpacity>
 
               <TextInput
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="Location name"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newAddress}
                 onChangeText={setNewAddress}
                 placeholder="Address line 1"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newAddress2}
                 onChangeText={setNewAddress2}
                 placeholder="Address line 2 (optional)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newPostcode}
                 onChangeText={setNewPostcode}
                 placeholder="Postcode"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newCountry}
                 onChangeText={setNewCountry}
                 placeholder="Country"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newPhone}
                 onChangeText={setNewPhone}
                 placeholder="Phone"
-                placeholderTextColor="#7B7B8B"
+                placeholderTextColor="#8A8178"
                 keyboardType="phone-pad"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={newEmail}
                 onChangeText={setNewEmail}
                 placeholder="Email"
-                placeholderTextColor="#7B7B8B"
+                placeholderTextColor="#8A8178"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-4"
               />
 
               {renderScheduleEditor(newSchedule, setNewSchedule)}
@@ -573,29 +621,30 @@ const Location = () => {
               <TouchableOpacity
                 onPress={addLocation}
                 disabled={adding}
-                className="bg-secondary rounded-xl py-4 items-center mb-3"
+                className="bg-ink rounded-xl py-4 items-center mb-3"
               >
                 {adding ? (
-                  <ActivityIndicator color="#161622" />
+                  <ActivityIndicator color="#F4F1EC" />
                 ) : (
-                  <Text className="text-primary font-psemibold text-base">Add Location</Text>
+                  <Text className="text-cream font-psemibold text-base">Add Location</Text>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setAddModal(false)} className="items-center py-2">
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
+                <Text className="text-muted font-pregular">Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
+        {bucketPickerModal}
       </Modal>
 
      
       <Modal visible={editModal} transparent animationType="slide">
         <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-3" />
-            <Text className="text-white font-psemibold text-xl px-5 mb-4">Edit Location</Text>
+          <View className="bg-card rounded-t-2xl pt-5" style={{ maxHeight: '92%' }}>
+            <View className="w-10 h-1 bg-field rounded-full self-center mb-3" />
+            <Text className="text-ink font-psemibold text-xl px-5 mb-4">Edit Location</Text>
             <ScrollView className="px-5" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 36 }}>
 
               <TouchableOpacity
@@ -616,69 +665,69 @@ const Location = () => {
                 />
                 <View className="absolute inset-0 items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
                   <Image source={icons.upload} className="w-6 h-6 mb-1" tintColor="#fff" resizeMode="contain" />
-                  <Text className="text-white font-pregular text-sm">Tap to change image</Text>
+                  <Text className="text-ink font-pregular text-sm">Tap to change image</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => openBucketPicker((url) => setEditImageUri(url))}
-                className="bg-black-200 rounded-xl py-3 items-center mb-4 flex-row justify-center"
+                className="bg-field rounded-xl py-3 items-center mb-4 flex-row justify-center"
               >
-                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#8ED1FC" resizeMode="contain" />
-                <Text className="text-secondary font-pregular text-sm">Choose from uploads</Text>
+                <Image source={icons.bookmark} className="w-4 h-4 mr-2" tintColor="#1A1817" resizeMode="contain" />
+                <Text className="text-ink font-pregular text-sm">Choose from uploads</Text>
               </TouchableOpacity>
 
               <TextInput
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Location name"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editAddress}
                 onChangeText={setEditAddress}
                 placeholder="Address line 1"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editAddress2}
                 onChangeText={setEditAddress2}
                 placeholder="Address line 2 (optional)"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editPostcode}
                 onChangeText={setEditPostcode}
                 placeholder="Postcode"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editCountry}
                 onChangeText={setEditCountry}
                 placeholder="Country"
-                placeholderTextColor="#7B7B8B"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                placeholderTextColor="#8A8178"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editPhone}
                 onChangeText={setEditPhone}
                 placeholder="Phone"
-                placeholderTextColor="#7B7B8B"
+                placeholderTextColor="#8A8178"
                 keyboardType="phone-pad"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-3"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-3"
               />
               <TextInput
                 value={editEmail}
                 onChangeText={setEditEmail}
                 placeholder="Email"
-                placeholderTextColor="#7B7B8B"
+                placeholderTextColor="#8A8178"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                className="bg-black-200 text-white font-pregular rounded-xl px-4 py-3 mb-4"
+                className="bg-field text-ink font-pregular rounded-xl px-4 py-3 mb-4"
               />
 
               {renderScheduleEditor(editSchedule, setEditSchedule)}
@@ -686,69 +735,29 @@ const Location = () => {
               <TouchableOpacity
                 onPress={saveChanges}
                 disabled={saving}
-                className="bg-secondary rounded-xl py-4 items-center mb-3"
+                className="bg-ink rounded-xl py-4 items-center mb-3"
               >
                 {saving ? (
-                  <ActivityIndicator color="#161622" />
+                  <ActivityIndicator color="#F4F1EC" />
                 ) : (
-                  <Text className="text-primary font-psemibold text-base">Save Changes</Text>
+                  <Text className="text-cream font-psemibold text-base">Save Changes</Text>
                 )}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={deleteLocation} className="items-center py-2 mb-1">
-                <Text className="text-red-500 font-pregular">Delete Location</Text>
+                <Text className="text-danger font-pregular">Delete Location</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => setEditModal(false)} className="items-center py-2">
-                <Text className="text-gray-100 font-pregular">Cancel</Text>
+                <Text className="text-muted font-pregular">Cancel</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
+        {bucketPickerModal}
       </Modal>
 
      
-      <Modal visible={bucketModal} transparent animationType="slide">
-        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <View className="bg-black-100 rounded-t-2xl px-5 pt-5 pb-8" style={{ maxHeight: '75%' }}>
-            <View className="w-10 h-1 bg-black-200 rounded-full self-center mb-5" />
-            <Text className="text-white font-psemibold text-xl mb-4">Choose from uploads</Text>
-
-            {loadingBucket ? (
-              <View className="py-16 items-center">
-                <ActivityIndicator size="large" color="#8ED1FC" />
-              </View>
-            ) : bucketImages.length === 0 ? (
-              <View className="py-16 items-center">
-                <Text className="text-gray-100 font-pregular text-sm">No images found in bucket.</Text>
-              </View>
-            ) : (
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View className="flex-row flex-wrap">
-                  {bucketImages.map((img) => (
-                    <TouchableOpacity
-                      key={img.name}
-                      onPress={() => {
-                        bucketOnPick?.(img.url);
-                        setBucketModal(false);
-                      }}
-                      activeOpacity={0.8}
-                      style={{ width: '31%', aspectRatio: 1, margin: '1.1%' }}
-                      className="rounded-xl overflow-hidden"
-                    >
-                      <Image source={{ uri: img.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-
-            <TouchableOpacity onPress={() => setBucketModal(false)} className="items-center py-3 mt-3">
-              <Text className="text-gray-100 font-pregular">Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };
