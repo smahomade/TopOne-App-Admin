@@ -26,12 +26,17 @@ const TabIcon = ({ icon, color, name, focused, noTint, size = 24 }: TabIconProps
         tintColor={noTint ? undefined : color}
         style={{ width: size, height: size }}
       />
+      {/* One line, and only a little bigger with large phone text sizes:
+          five tabs share a small phone's width. */}
       <Text
-        style={{ 
+        style={{
           fontWeight: focused ? '600' : '400',
           fontSize: 12,
-          color 
+          color
         }}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        maxFontSizeMultiplier={1.15}
       >
         {name}
       </Text>

@@ -424,10 +424,11 @@ const Home = () => {
                 accessibilityRole="button"
                 accessibilityLabel="Change the logo"
               >
-                <SalonLogo style={{ width: 160, height: 64 }} />
+                <SalonLogo style={{ width: 150, height: 64 }} />
+                {/* Just below the logo's corner, so it doesn't cover "SALON". */}
                 <View
-                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-black-100 items-center justify-center"
-                  style={{ borderWidth: 1, borderColor: '#232533' }}
+                  className="absolute w-6 h-6 rounded-full bg-black-100 items-center justify-center"
+                  style={{ borderWidth: 1, borderColor: '#232533', right: 0, bottom: -18 }}
                 >
                   <Image source={icons.upload} style={{ width: 11, height: 11 }} tintColor="#8ED1FC" resizeMode="contain" />
                 </View>
